@@ -1,9 +1,17 @@
-[package]
-name = "chat-server"
-version = "0.1.0"
-authors = ["Elias.Yao <siran0611@gmail.com>"]
-edition = "2018"
+[workspace]
+members = [
+    "fastjob",
+    "fastjob-admin",
+    "components/app",
+    "components/error",
+    "components/error",
+    "components/metrics",
+    "components/tracing",
+    "components/utils",
+]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
+[profile.dev]
+debug = false
+[profile.test]
+debug = false
