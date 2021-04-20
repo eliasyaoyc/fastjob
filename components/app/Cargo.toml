@@ -1,5 +1,5 @@
 [package]
-name = "app"
+name = "fastjob-components-app"
 version = "0.1.0"
 authors = ["Elias.Yao <siran0611@gmail.com>"]
 edition = "2018"
