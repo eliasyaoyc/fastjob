@@ -1,8 +1,3 @@
-mod recover;
-mod never;
-
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
-
 #[cfg(test)]
 mod tests {
     #[test]

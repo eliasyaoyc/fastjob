@@ -8,6 +8,8 @@ members = [
     "components/metrics",
     "components/tracing",
     "components/utils",
+    "components/resouce-constraints",
+    "components/worker",
 ]
 
 

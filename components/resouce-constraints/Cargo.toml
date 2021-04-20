@@ -1,5 +1,5 @@
 [package]
-name = "fastjob-components-tracing"
+name = "fastjob-components-resouce-constraints"
 version = "0.1.0"
 authors = ["Elias.Yao <siran0611@gmail.com>"]
 edition = "2018"
@@ -7,5 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tracing = "0.1"
-tracing-subscriber = "0.2"
+getopts = "0.2"
+nix = "0.19.1"
+simple-error = "0.2.2"
