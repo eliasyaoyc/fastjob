@@ -1,5 +1,5 @@
 [package]
-name = "fastjob-components-worker"
+name = "fastjob-components-scheduler"
 version = "0.1.0"
 authors = ["Elias.Yao <siran0611@gmail.com>"]
 edition = "2018"

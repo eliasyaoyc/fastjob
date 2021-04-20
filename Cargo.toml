@@ -1,17 +1,19 @@
 [workspace]
 members = [
     "fastjob",
+    "fastjob-client",
     "fastjob-admin",
+    "components/alarm",
     "components/app",
+    "components/app/core",
+    "components/app/scheduler",
     "components/error",
     "components/error",
     "components/metrics",
     "components/tracing",
     "components/utils",
     "components/resouce-constraints",
-    "components/worker",
 ]
-
 
 [profile.dev]
 debug = false
