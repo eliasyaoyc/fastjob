@@ -13,6 +13,9 @@ members = [
     "components/tracing",
     "components/utils",
     "components/resouce-constraints",
+    "components/stack",
+    "components/timeout",
+    "components/retry",
 ]
 
 [profile.dev]

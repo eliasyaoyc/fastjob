@@ -1,7 +1,3 @@
-mod config;
-mod errors;
-mod svc;
-
 #[cfg(test)]
 mod tests {
     #[test]

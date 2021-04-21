@@ -1,6 +1,4 @@
-mod config;
-mod errors;
-mod svc;
+mod failfast;
 
 #[cfg(test)]
 mod tests {
