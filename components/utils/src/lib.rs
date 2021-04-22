@@ -1,3 +1,6 @@
+pub mod signal;
+pub mod drain;
+
 #[cfg(test)]
 mod tests {
     #[test]

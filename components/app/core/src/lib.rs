@@ -1,6 +1,7 @@
 mod config;
 mod errors;
 mod svc;
+mod serve;
 
 #[cfg(test)]
 mod tests {

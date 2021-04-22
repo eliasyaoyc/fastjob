@@ -4,7 +4,7 @@ pub mod new_service;
 pub use new_service::{NewService};
 
 mod box_future;
-mod layer;
+pub mod layer;
 mod box_new_service;
 mod map_target;
 

@@ -5,5 +5,11 @@ authors = ["Elias.Yao <siran0611@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+retain = ["tower"]
 
 [dependencies]
+tokio = { version = "1", features = ["macros", "signal"] }
+tracing = "0.1.23"
+tower = { version = "0.4.5", default-features = false, optional = true }
+fastjob-components-stack = { path = "../stack" }
