@@ -26,7 +26,8 @@ fastjob-components-stack = { path = "../../stack" }
 fastjob-components-scheduler = { path = "../scheduler" }
 fastjob-components-metrics = { path = "../../metrics" }
 fastjob-components-alarm = { path = "../../alarm" }
-fastjob-components-resouce-constraints = { path = "../../resouce-constraints" }
+fastjob-components-worker = { path = "../worker" }
+fastjob-components-transport = { path = "../../transport" }
 
 
 [dependencies.tower]
