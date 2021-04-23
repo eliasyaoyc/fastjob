@@ -1,4 +1,4 @@
-use fastjob_components_stack::{
+pub use fastjob_components_stack::{
     new_service::NewService,
     self as stack,
 };
@@ -6,10 +6,13 @@ use tower::{
     buffer::{Buffer as TowerBuffer, BufferLayer},
     layer::util::{Identity, Stack as Pair},
     make::MakeService,
+};
+pub use tower::{
     layer::Layer,
     service_fn as mk,
     spawn_ready::SpawnReady,
     util::{Either, MapErrLayer},
+    Service,
     ServiceExt,
 };
 use std::task::{Context, Poll};
@@ -50,6 +53,15 @@ impl<L> Layers<L> {
     // }
 }
 
+impl<S> Stack<S> {
+    pub fn push<L: Layer<S>>(self, layer: L) -> Stack<L::Service> {
+        Stack(layer.layer(self.0))
+    }
+
+    pub fn into_inner(self) -> S {
+        self.0
+    }
+}
 
 impl<T, N> NewService<T> for Stack<N>
     where

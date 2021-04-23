@@ -6,6 +6,7 @@ members = [
     "components/alarm",
     "components/app",
     "components/app/core",
+    "components/app/server",
     "components/app/scheduler",
     "components/error",
     "components/error",
@@ -16,6 +17,8 @@ members = [
     "components/stack",
     "components/timeout",
     "components/retry",
+    "components/transport",
+    "components/app/worker",
 ]
 
 [profile.dev]

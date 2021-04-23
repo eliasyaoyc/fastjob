@@ -1,9 +1,3 @@
-mod config;
-mod errors;
-pub mod svc;
-pub mod serve;
-mod worker;
-
 #[cfg(test)]
 mod tests {
     #[test]
