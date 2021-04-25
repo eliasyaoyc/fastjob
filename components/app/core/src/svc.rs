@@ -1,7 +1,6 @@
-pub use fastjob_components_stack::{
-    new_service::NewService,
-    self as stack,
-};
+pub use fastjob_components_stack::{self as stack, new_service::NewService};
+use std::future::Future;
+use std::task::{Context, Poll};
 use tower::{
     buffer::{Buffer as TowerBuffer, BufferLayer},
     layer::util::{Identity, Stack as Pair},
@@ -12,11 +11,8 @@ pub use tower::{
     service_fn as mk,
     spawn_ready::SpawnReady,
     util::{Either, MapErrLayer},
-    Service,
-    ServiceExt,
+    Service, ServiceExt,
 };
-use std::task::{Context, Poll};
-use std::future::Future;
 
 #[derive(Clone, Debug)]
 pub struct Layers<L>(L);
@@ -39,7 +35,7 @@ impl<L> Layers<L> {
 
     /// Wraps an inner `MakeService` to be a `NewService`.
     pub fn push_into_new_service(
-        self
+        self,
     ) -> Layers<Pair<L, stack::new_service::FromMakeServiceLayer>> {
         self.push(stack::new_service::FromMakeServiceLayer::default())
     }
@@ -64,8 +60,8 @@ impl<S> Stack<S> {
 }
 
 impl<T, N> NewService<T> for Stack<N>
-    where
-        N: NewService<T>,
+where
+    N: NewService<T>,
 {
     type Service = N::Service;
 
@@ -75,8 +71,8 @@ impl<T, N> NewService<T> for Stack<N>
 }
 
 impl<T, S> tower::Service<T> for Stack<S>
-    where
-        S: tower::Service<T>
+where
+    S: tower::Service<T>,
 {
     type Response = S::Response;
     type Error = S::Error;

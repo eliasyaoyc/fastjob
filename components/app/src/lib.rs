@@ -1,4 +1,4 @@
-mod env;
+pub mod option;
 
 use fastjob_components_error::Error;
 use fastjob_components_utils::drain;
@@ -10,11 +10,11 @@ use tokio::{
 #[derive(Clone, Debug)]
 pub struct Config {
     pub worker: u32,
+    pub gossip: goss,
+
 }
 
-pub struct App {
-    drain: drain::Signal
-}
+pub struct App {}
 
 impl Config {
     pub async fn build(
@@ -27,10 +27,6 @@ impl Config {
 
 impl App {
     pub fn spawn(self) -> drain::Signal {
-        let App {
-            drain
-        } = self;
-
-        drain
+        let App {} = self;
     }
 }

@@ -19,6 +19,24 @@ pub use tower::{
 /// able to obtain configuration from the stack target, but stack modules are
 /// decoupled from any concrete target types. The `Param` trait provides a way to
 /// statically guarantee that a given target can provide a configuration parameter.
+///
+/// # Examples
+/// ```
+/// use fastjob_components_stack::Param;
+///
+/// #[derive(Copy, Clone)]
+/// struct ListenAddr();
+///
+/// struct Config {
+///  addr: ListenAddr,
+/// }
+///
+/// impl Param<ListenAddr> for Config {
+///   fn param(&self) -> ListenAddr {
+///         self.addr
+///     }
+/// }
+/// ```
 pub trait Param<T> {
     /// Produces `T`-typed stack parameter.
     fn param(&self) -> T;
