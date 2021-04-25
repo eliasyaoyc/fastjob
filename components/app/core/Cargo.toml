@@ -10,7 +10,7 @@ edition = "2018"
 bytes = "1"
 http = "0.2"
 http-body = "0.4"
-hyper = { version = "0.14.2", features = ["http1", "http2"] }
+hyper = { version = "0.14.4", features = ["full"] }
 futures = "0.3.9"
 indexmap = "1.0"
 ipnet = "2.0"
@@ -18,7 +18,7 @@ regex = "1.0.0"
 thiserror = "1.0"
 tokio = { version = "1", features = ["macros", "sync", "parking_lot"]}
 tokio-stream = { version = "0.1.5", features = ["time"] }
-tonic = { version = "0.4", default-features = false, features = ["prost"] }
+warp = "0.3.0"
 tracing = "0.1.23"
 pin-project = "1"
 fastjob-components-error = { path = "../../error" }
@@ -28,6 +28,7 @@ fastjob-components-metrics = { path = "../../metrics" }
 fastjob-components-alarm = { path = "../../alarm" }
 fastjob-components-worker = { path = "../worker" }
 fastjob-components-transport = { path = "../../transport" }
+fastjob-components-utils = { path = "../../utils" }
 
 
 [dependencies.tower]
