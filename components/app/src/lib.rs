@@ -1,7 +1,13 @@
 pub mod option;
 
+use crate::option::Opt;
+use fastjob_components_core::gossip::GossipConfig;
+use fastjob_components_core::{gossip, service, ListenAddr};
 use fastjob_components_error::Error;
-use fastjob_components_utils::drain;
+use fastjob_components_utils::id_generator::GeneratorTyp;
+use fastjob_components_utils::{drain, id_generator};
+use fastjob_components_worker::worker_manager;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::{
     sync::mpsc,
     time::{self, Duration},
@@ -9,24 +15,49 @@ use tokio::{
 
 #[derive(Clone, Debug)]
 pub struct Config {
-    pub worker: u32,
-    pub gossip: goss,
-
+    pub server: service::ServiceConfig,
+    pub worker_manager: worker_manager::WorkerManagerConfig,
 }
 
-pub struct App {}
+pub struct App {
+    pub server: service::FastJobServe,
+    pub worker_manager: worker_manager::WorkerManager,
+}
 
 impl Config {
-    pub async fn build(
-        self,
-        shutdown_tx: mpsc::UnboundedSender<()>,
-    ) -> Result<App, Error> {
-        Ok(App {})
+    /// Only build all components equivalent to initialization, and will not start.
+    pub async fn build(self, shutdown_tx: mpsc::UnboundedSender<()>) -> Result<App, Error> {
+        let server = service::FastJobServe::build(
+            id_generator::generator_id(GeneratorTyp::Server),
+            &self.server,
+        );
+
+        let worker_manager = worker_manager::WorkerManager::build(
+            id_generator::generator_id(GeneratorTyp::WorkerManager),
+            &self.worker_manager,
+        );
+
+        Ok(App {
+            server,
+            worker_manager,
+        })
     }
 }
 
 impl App {
-    pub fn spawn(self) -> drain::Signal {
-        let App {} = self;
+    /// start all components.
+    pub fn spawn(self) {
+        let App {
+            server,
+            worker_manager,
+        } = self;
+
+        std::thread::Builder::new()
+            .name("fastjob-server".into())
+            .spawn(move || {});
+
+        std::thread::Builder::new()
+            .name("workermanger".into())
+            .spawn(move || {});
     }
 }

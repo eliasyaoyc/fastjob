@@ -7,7 +7,6 @@ members = [
     "components/app",
     "components/app/core",
     "components/app/scheduler",
-    "components/app/gossip",
     "components/app/worker",
     "components/error",
     "components/error",

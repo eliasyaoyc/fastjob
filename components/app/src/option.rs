@@ -8,6 +8,6 @@ pub struct Opt {
     serve_port: u16,
     #[structopt(short = "gp", default_value = "3001")]
     gossip_port: u16,
-    #[strutopt(short = "ll", default_value = "info")]
+    #[structopt(short = "ll", default_value = "info")]
     log_level: String,
 }

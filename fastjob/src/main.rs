@@ -1,11 +1,29 @@
 mod rt;
 
-use fastjob_components_app::{Config, option::Opt};
+use fastjob_components_app::{Config, option};
 use fastjob_components_utils::signal;
 use tokio::sync::mpsc;
-pub use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, warn};
+use structopt::StructOpt;
+use std::net::{SocketAddr, IpAddr, Ipv4Addr};
+use fastjob_components_core::{service, ListenAddr};
+use fastjob_components_core::gossip::GossipConfig;
+use fastjob_components_worker::worker_manager;
+use std::io::Error;
 
 const EX_USAGE: i32 = 64;
+
+#[derive(Debug, StructOpt)]
+pub struct Opt {
+    #[structopt(short = "d", long)]
+    debug: bool,
+    #[structopt(short = "p", default_value = "3000")]
+    serve_port: u16,
+    #[structopt(short = "gp", default_value = "3001")]
+    gossip_port: u16,
+    #[structopt(short = "ll", default_value = "info")]
+    log_level: String,
+}
 
 fn main() {
     // Command-Line Highest Priority.
@@ -20,10 +38,9 @@ fn main() {
         }
     };
 
-
     rt::build().block_on(async move {
         let (shutdown_tx, mut shutdown_rx) = mpsc::unbounded_channel();
-        let app = match config.build(shutdown_rx).await {
+        let app = match config.build(shutdown_tx).await {
             Ok(app) => app,
             Err(e) => {
                 eprintln!("Initialization failure: {}", e);
@@ -31,7 +48,7 @@ fn main() {
             }
         };
 
-        let drain = app.spawn();
+        app.spawn();
         tokio::select! {
             _ = signal::shutdown() => {
                 info!("Received shutdown signal")
@@ -40,10 +57,17 @@ fn main() {
                 info!("Received shutdown via admin interface.")
             }
         }
-        drain.drain().await;
+        // drain.drain().await;
     });
 }
 
-fn config_from_yaml(opt: Opt) -> Result<Config, ()> {
-    Ok(Config { worker: 0, gossip: () })
+pub fn config_from_yaml(opt: Opt) -> Result<Config, Error> {
+    Ok(Config {
+        server: service::ServiceConfig {
+            addr: ListenAddr(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080)),
+            gossip: GossipConfig {},
+            log_level: "".to_string(),
+        },
+        worker_manager: worker_manager::WorkerManagerConfig {},
+    })
 }

@@ -11,8 +11,11 @@ default = ["multicore"]
 multicore = ["tokio/rt-multi-thread","num_cpus"]
 
 [dependencies]
+structopt = "0.3"
 tokio = "1.5.0"
 tracing = "0.1.23"
 num_cpus = { version = "1", optional = true }
 fastjob-components-app = {path = "../components/app"}
 fastjob-components-utils = {path = "../components/utils"}
+fastjob-components-worker = { path = "../components/app/worker" }
+fastjob-components-core = { path = "../components/app/core" }

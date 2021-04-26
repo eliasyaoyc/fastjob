@@ -3,16 +3,17 @@ use std::net::{SocketAddr, ToSocketAddrs};
 
 mod config;
 mod errors;
+pub mod gossip;
 mod meta;
 pub mod serve;
-mod service;
+pub mod service;
 pub mod svc;
 
-#[derive(Copy, Clone)]
-pub struct ListenAddrs(Vec<ListenAddr>);
+#[derive(Clone)]
+pub struct ListenAddrs(pub Vec<ListenAddr>);
 
-#[derive(Copy, Clone)]
-pub struct ListenAddr(SocketAddr);
+#[derive(Clone, Debug)]
+pub struct ListenAddr(pub SocketAddr);
 
 impl AsRef<SocketAddr> for ListenAddr {
     fn as_ref(&self) -> &SocketAddr {

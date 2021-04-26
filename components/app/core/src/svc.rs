@@ -66,7 +66,7 @@ where
     type Service = N::Service;
 
     fn new_service(&mut self, target: T) -> Self::Service {
-        self.0.new_service(t)
+        self.0.new_service(target)
     }
 }
 
@@ -82,7 +82,7 @@ where
         self.0.poll_ready(cx)
     }
 
-    fn call(&mut self, req: T) -> Self::Future {
-        self.0.call(T)
+    fn call(&mut self, t: T) -> Self::Future {
+        self.0.call(t)
     }
 }

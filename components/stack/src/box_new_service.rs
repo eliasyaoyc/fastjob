@@ -53,7 +53,7 @@ impl<T, S> NewService<T> for BoxNewService<T, S> {
     type Service = S;
 
     fn new_service(&mut self, target: T) -> Self::Service {
-        self.inner.inner_new_service(t)
+        self.inner.inner_new_service(target)
     }
 }
 

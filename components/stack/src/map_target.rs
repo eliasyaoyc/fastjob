@@ -69,7 +69,7 @@ impl<F, T, U> MapTarget<T> for F
     where
         F: Fn(T) -> U,
 {
-    type Target = ();
+    type Target = U;
 
     fn map_target(&self, t: T) -> Self::Target {
         (self)(t)

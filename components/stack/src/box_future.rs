@@ -29,7 +29,7 @@ impl<T, R> tower::Service<R> for BoxFuture<T>
 {
     type Response = T::Response;
     type Error = T::Error;
-    type Future = T::Future;
+    type Future = Pin<Box<dyn Future<Output=Result<Self::Response, Self::Error>> + Send>>;
 
     #[inline]
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {

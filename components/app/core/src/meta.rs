@@ -1,7 +1,7 @@
 use crate::svc::stack::Param;
 use crate::{ListenAddr, ListenAddrs};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug)]
 pub struct Meta {}
 
 impl Meta {
