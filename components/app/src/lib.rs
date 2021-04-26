@@ -7,7 +7,7 @@ use fastjob_components_error::Error;
 use fastjob_components_utils::id_generator::GeneratorTyp;
 use fastjob_components_utils::{drain, id_generator};
 use fastjob_components_worker::worker_manager;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener};
 use tokio::{
     sync::mpsc,
     time::{self, Duration},
@@ -46,7 +46,7 @@ impl Config {
 
 impl App {
     /// start all components.
-    pub fn spawn(self) {
+    pub fn spawn(self){
         let App {
             server,
             worker_manager,
@@ -54,7 +54,15 @@ impl App {
 
         std::thread::Builder::new()
             .name("fastjob-server".into())
-            .spawn(move || {});
+            .spawn(move || {
+                // let rt = tokio::runtime::Builder::new_current_thread()
+                //     .enable_all()
+                //     .build()
+                //     .expect("building failed");
+                // rt.block_on(async move {
+                //     tokio::spawn(server.serve());
+                // })
+            }).expect("fastjob-server");
 
         std::thread::Builder::new()
             .name("workermanger".into())

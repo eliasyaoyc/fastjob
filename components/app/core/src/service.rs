@@ -37,7 +37,7 @@ impl Param<ListenAddr> for ServiceConfig {
 #[derive(Clone, Debug)]
 pub struct FastJobServe {
     id: usize,
-    config: ServiceConfig,
+    pub config: ServiceConfig,
     meta: Meta,
     work_managers: Vec<WorkerManager>,
 }
@@ -71,7 +71,7 @@ impl FastJobServe {
     }
 
     /// Construct the warp filter that provide the ability of route.
-    pub fn construct_filter(&self) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    pub fn construct_filter(&self) -> impl Filter<Extract=impl Reply, Error=Rejection> + Clone {
         warp::get()
             .and(path!(String))
             .map(|path: String| Response::new(Body::empty()))
@@ -115,7 +115,11 @@ impl FastJobServe {
     //         })
     // }
 
-    pub async fn serve<F>(&self, listener: TcpListener) -> Result<(), hyper::Error> {
+    pub async fn serve(&self) -> Result<(), hyper::Error> {
+        println!("=================================");
+        // let addr = self.config.addr.clone();
+        let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 8080));
+        let listener = TcpListener::bind(addr).unwrap();
         let warp_service = warp::service(self.construct_filter());
         let service = ServiceBuilder::new()
             .timeout(Duration::from_secs(10))

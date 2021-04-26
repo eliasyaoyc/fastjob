@@ -49,6 +49,7 @@ fn main() {
         };
 
         app.spawn();
+
         tokio::select! {
             _ = signal::shutdown() => {
                 info!("Received shutdown signal")
