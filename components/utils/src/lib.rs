@@ -1,6 +1,7 @@
 pub mod signal;
 pub mod drain;
 pub mod id_generator;
+pub mod signal_handler;
 
 /// Represents a value of one of two possible types(a more generic Result.)
 #[derive(Debug, Clone)]

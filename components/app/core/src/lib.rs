@@ -1,6 +1,6 @@
+use ipnet::IpAdd;
 use std::fmt::Formatter;
 use std::net::{SocketAddr, ToSocketAddrs};
-use ipnet::IpAdd;
 
 mod config;
 mod errors;

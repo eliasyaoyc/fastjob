@@ -5,7 +5,7 @@ use fastjob_components_core::gossip::GossipConfig;
 use fastjob_components_core::{gossip, server, ListenAddr};
 use fastjob_components_error::Error;
 use fastjob_components_utils::id_generator::GeneratorTyp;
-use fastjob_components_utils::{drain, id_generator};
+use fastjob_components_utils::{drain, id_generator, signal_handler};
 use fastjob_components_worker::worker_manager;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener};
 use tokio::{
@@ -27,7 +27,7 @@ pub struct App {
 
 impl Config {
     /// Only build all components equivalent to initialization, and will not start.
-    pub async fn build(self, shutdown_tx: mpsc::UnboundedSender<()>) -> Result<App, Error> {
+    pub fn build(self, shutdown_tx: mpsc::UnboundedSender<()>) -> Result<App, Error> {
         let server = server::FastJobServe::build(
             id_generator::generator_id(GeneratorTyp::Server),
             &self.server,
@@ -58,6 +58,8 @@ impl App {
 
         server.run().unwrap_or_else(|e| tracing::error!("FastJob Server start failure, cause: {}", e));
         worker_manager.run().unwrap_or_else(|e| tracing::error!("FastJob WorkerManager start failure, cause: {}", e));
+
+        signal_handler::wait_for_signal();
 
         // std::thread::Builder::new()
         //     .name("fastjob-server".into())

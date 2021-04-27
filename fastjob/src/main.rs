@@ -40,29 +40,41 @@ fn main() {
         }
     };
 
-    rt::build().block_on(async move {
-        let (shutdown_tx, mut shutdown_rx) = mpsc::unbounded_channel();
-        let app = match config.build(shutdown_tx).await {
-            Ok(app) => app,
-            Err(e) => {
-                eprintln!("Initialization failure: {}", e);
-                std::process::exit(1);
-            }
-        };
-
-        // Run server.
-        app.spawn();
-
-        tokio::select! {
-        _ = signal::shutdown() => {
-            info!("Received shutdown signal")
+    let (shutdown_tx, mut shutdown_rx) = mpsc::unbounded_channel();
+    let app = match config.build(shutdown_tx) {
+        Ok(app) => app,
+        Err(e) => {
+            eprintln!("Initialization failure: {}", e);
+            std::process::exit(1);
         }
-        _ = shutdown_rx.recv() => {
-            info!("Received shutdown via admin interface.")
-        }
-    }
-        // drain.drain().await;
-    });
+    };
+
+    // Run server.
+    app.spawn();
+
+    // rt::build().block_on(async move {
+    //     let (shutdown_tx, mut shutdown_rx) = mpsc::unbounded_channel();
+    //     let app = match config.build(shutdown_tx).await {
+    //         Ok(app) => app,
+    //         Err(e) => {
+    //             eprintln!("Initialization failure: {}", e);
+    //             std::process::exit(1);
+    //         }
+    //     };
+    //
+    //     // Run server.
+    //     app.spawn();
+    //
+    //     tokio::select! {
+    //     _ = signal::shutdown() => {
+    //         info!("Received shutdown signal")
+    //     }
+    //     _ = shutdown_rx.recv() => {
+    //         info!("Received shutdown via admin interface.")
+    //     }
+    // }
+    //     // drain.drain().await;
+    // });
 }
 
 

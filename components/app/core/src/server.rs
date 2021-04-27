@@ -1,22 +1,18 @@
-use crate::{
-    gossip::GossipConfig,
-    meta::MetaManager,
-    ListenAddr,
-};
+use crate::{gossip::GossipConfig, meta::MetaManager, ListenAddr};
 use fastjob_components_error::Error;
+use fastjob_components_scheduler::{Scheduler, SchedulerManger};
 use fastjob_components_utils::{drain, Either};
 use fastjob_components_worker::worker_manager::WorkerManager;
 use futures::{future, FutureExt};
+use grpcio::{ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder};
+use grpcio_health::{create_health, HealthService, ServingStatus};
 use std::future::Future;
-use std::net::{TcpListener, SocketAddr, IpAddr};
+use std::net::{IpAddr, SocketAddr, TcpListener};
 use std::pin::Pin;
+use std::str::FromStr;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use grpcio::{Server as GrpcServer, ServerBuilder, ChannelBuilder, EnvBuilder};
-use std::str::FromStr;
-use fastjob_components_scheduler::{Scheduler, SchedulerManger};
-use grpcio_health::{HealthService, create_health, ServingStatus};
-use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct ServiceConfig {
@@ -46,10 +42,7 @@ impl FastJobServe {
 
         let health_service = HealthService::default();
 
-        let env = Arc::new(
-            EnvBuilder::new()
-                .name_prefix("GRPC-SERVER")
-                .build());
+        let env = Arc::new(EnvBuilder::new().name_prefix("GRPC-SERVER").build());
         let channel_args = ChannelBuilder::new(Arc::clone(&env)).build_args();
 
         let builder = {

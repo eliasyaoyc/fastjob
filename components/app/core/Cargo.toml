@@ -20,8 +20,8 @@ tokio-stream = { version = "0.1.5", features = ["time"] }
 tracing = "0.1.23"
 grpcio = "0.8.0"
 grpcio-health = "0.8.0"
+
 fastjob-components-error = { path = "../../error" }
-fastjob-components-stack = { path = "../../stack" }
 fastjob-components-scheduler = { path = "../scheduler" }
 fastjob-components-metrics = { path = "../../metrics" }
 fastjob-components-alarm = { path = "../../alarm" }
