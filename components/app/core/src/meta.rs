@@ -1,11 +1,12 @@
-use crate::svc::stack::Param;
 use crate::{ListenAddr, ListenAddrs};
 
 #[derive(Clone, Debug)]
-pub struct Meta {}
+pub struct MetaManager {}
 
-impl Meta {
-    pub fn new() -> Meta {
+impl MetaManager {
+    pub fn new() -> MetaManager {
         Self {}
     }
+
+    pub fn start(&self) {}
 }

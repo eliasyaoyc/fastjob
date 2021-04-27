@@ -2,7 +2,7 @@ pub mod option;
 
 use crate::option::Opt;
 use fastjob_components_core::gossip::GossipConfig;
-use fastjob_components_core::{gossip, service, ListenAddr};
+use fastjob_components_core::{gossip, server, ListenAddr};
 use fastjob_components_error::Error;
 use fastjob_components_utils::id_generator::GeneratorTyp;
 use fastjob_components_utils::{drain, id_generator};
@@ -12,22 +12,23 @@ use tokio::{
     sync::mpsc,
     time::{self, Duration},
 };
+use fastjob_components_core::server::FastJobServe;
 
 #[derive(Clone, Debug)]
 pub struct Config {
-    pub server: service::ServiceConfig,
+    pub server: server::ServiceConfig,
     pub worker_manager: worker_manager::WorkerManagerConfig,
 }
 
 pub struct App {
-    pub server: service::FastJobServe,
+    pub server: server::FastJobServe,
     pub worker_manager: worker_manager::WorkerManager,
 }
 
 impl Config {
     /// Only build all components equivalent to initialization, and will not start.
     pub async fn build(self, shutdown_tx: mpsc::UnboundedSender<()>) -> Result<App, Error> {
-        let server = service::FastJobServe::build(
+        let server = server::FastJobServe::build(
             id_generator::generator_id(GeneratorTyp::Server),
             &self.server,
         );
@@ -45,27 +46,38 @@ impl Config {
 }
 
 impl App {
-    /// start all components.
-    pub fn spawn(self){
+    /// Run a FastJob server include scheduler 、workerManager 、gossip 、admin components etc.
+    pub fn spawn(self) {
         let App {
-            server,
-            worker_manager,
+            mut server,
+            mut worker_manager,
         } = self;
 
-        std::thread::Builder::new()
-            .name("fastjob-server".into())
-            .spawn(move || {
-                // let rt = tokio::runtime::Builder::new_current_thread()
-                //     .enable_all()
-                //     .build()
-                //     .expect("building failed");
-                // rt.block_on(async move {
-                //     tokio::spawn(server.serve());
-                // })
-            }).expect("fastjob-server");
+        // setup the global logger.
+        initial_logger();
 
-        std::thread::Builder::new()
-            .name("workermanger".into())
-            .spawn(move || {});
+        server.run().unwrap_or_else(|e| tracing::error!("FastJob Server start failure, cause: {}", e));
+        worker_manager.run().unwrap_or_else(|e| tracing::error!("FastJob WorkerManager start failure, cause: {}", e));
+
+        // std::thread::Builder::new()
+        //     .name("fastjob-server".into())
+        //     .spawn(move || {
+        //         let rt = tokio::runtime::Builder::new_current_thread()
+        //             .enable_all()
+        //             .build()
+        //             .expect("building failed");
+        //         rt.block_on(async move {
+        //             tokio::spawn(FastJobServe::serve().await.expect("a"));
+        //         })
+        //     }).expect("fastjob-server");
+
+        // std::thread::Builder::new()
+        //     .name("workermanger".into())
+        //     .spawn(move || {});
     }
+
+    pub fn stop(self) {}
 }
+
+#[allow(dead_code)]
+pub fn initial_logger() {}

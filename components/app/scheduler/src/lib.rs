@@ -6,6 +6,18 @@ mod primary_scheduler;
 //     PriorityScheduler,
 // }
 
+#[derive(Clone)]
+pub struct SchedulerManger {}
+
+
+impl SchedulerManger {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn start(&self) {}
+}
+
 pub trait Scheduler {
     fn get_algorithm(&self, name: &str);
     fn register_algorithm(&mut self, name: &str);

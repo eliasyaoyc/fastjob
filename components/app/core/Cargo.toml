@@ -10,17 +10,16 @@ edition = "2018"
 bytes = "1"
 http = "0.2"
 http-body = "0.4"
-hyper = { version = "0.14.4", features = ["full"] }
 futures = "0.3.9"
 indexmap = "1.0"
 ipnet = "2.0"
 regex = "1.0.0"
 thiserror = "1.0"
-tokio = { version = "1", features = ["macros", "sync", "parking_lot"]}
+tokio = { version = "1", features = ["macros", "sync", "parking_lot"] }
 tokio-stream = { version = "0.1.5", features = ["time"] }
-warp = "0.3.0"
 tracing = "0.1.23"
-pin-project = "1"
+grpcio = "0.8.0"
+grpcio-health = "0.8.0"
 fastjob-components-error = { path = "../../error" }
 fastjob-components-stack = { path = "../../stack" }
 fastjob-components-scheduler = { path = "../scheduler" }
@@ -29,17 +28,3 @@ fastjob-components-alarm = { path = "../../alarm" }
 fastjob-components-worker = { path = "../worker" }
 fastjob-components-transport = { path = "../../transport" }
 fastjob-components-utils = { path = "../../utils" }
-
-
-[dependencies.tower]
-version = "0.4"
-# disable tower's tracing `log` integration for performance reasons, since we
-# will consume tower's traces as traces.
-default-features = false
-features = [
-    "buffer",
-    "make",
-    "spawn-ready",
-    "timeout",
-    "util",
-]

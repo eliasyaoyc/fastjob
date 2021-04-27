@@ -30,13 +30,32 @@ impl WorkerManager {
             workers: vec![],
         }
     }
-    pub fn scheduler(&self) -> Result<(), Error> {
+
+    fn pre_start(&mut self) -> Result<(), Error> {
         Ok(())
     }
 
-    fn add_worker(&self) {}
+    pub fn run(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
 
-    fn stop_worker(&self) {}
+    pub fn manual_sched(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
+
+    pub fn sched(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn add_worker(&mut self) {}
+
+    fn stop_worker(&mut self) {}
+
+    /// Determine if the worker is to be removed.
+    #[inline]
+    fn is_need_remove(&self) -> bool {
+        true
+    }
 
     /// Determine whether the current `WorkerManager` is service-side.
     #[inline]

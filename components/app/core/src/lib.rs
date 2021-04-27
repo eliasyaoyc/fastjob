@@ -1,13 +1,12 @@
 use std::fmt::Formatter;
 use std::net::{SocketAddr, ToSocketAddrs};
+use ipnet::IpAdd;
 
 mod config;
 mod errors;
 pub mod gossip;
 mod meta;
-pub mod serve;
-pub mod service;
-pub mod svc;
+pub mod server;
 
 #[derive(Clone)]
 pub struct ListenAddrs(pub Vec<ListenAddr>);
