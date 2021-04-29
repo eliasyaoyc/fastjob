@@ -20,9 +20,11 @@ tokio-stream = { version = "0.1.5", features = ["time"] }
 tracing = "0.1.23"
 grpcio = "0.8.0"
 grpcio-health = "0.8.0"
-fastjob-proto = {git = "https://github.com/eliasyaoyc/fastjob-proto"}
+fastjob-proto = { git = "https://github.com/eliasyaoyc/fastjob-proto" }
 
 fastjob-components-error = { path = "../../error" }
+fastjob-components-storage = { path = "../../storage" }
+fastjob-components-log = { path = "../../log" }
 fastjob-components-scheduler = { path = "../scheduler" }
 fastjob-components-metrics = { path = "../../metrics" }
 fastjob-components-alarm = { path = "../../alarm" }

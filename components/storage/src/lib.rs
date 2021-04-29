@@ -1,22 +1,18 @@
-use rbatis::rbatis::{Rbatis, RbatisOption};
-use std::sync::Arc;
+use fastjob_components_error::Error;
 use rbatis::core::db::DBPoolOptions;
 use rbatis::crud::{CRUDTable, CRUD};
-use serde::Serialize;
-use serde::de::DeserializeOwned;
-use std::time::Duration;
-use fastjob_components_error::Error;
-use rbatis::wrapper::Wrapper;
 use rbatis::plugin::page::{Page, PageRequest};
+use rbatis::rbatis::{Rbatis, RbatisOption};
+use rbatis::wrapper::Wrapper;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+use std::sync::Arc;
+use std::time::Duration;
 
-mod rbatis_test;
 pub mod model;
+mod rbatis_test;
 
-pub enum StorageTyp {
-    /// The current version only support `MYSQL`.
-    MYSQL,
-}
-
+#[derive(Clone, Debug)]
 pub struct StorageConfig {
     pub addr: String,
     pub username: String,
@@ -47,41 +43,53 @@ pub trait Storage {
     fn prepare(&self);
 
     fn save<T>(&self, t: &T) -> Result<(), Error>
-        where T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn save_batch<T>(&self, t: &[T]) -> Result<(), Error>
-        where T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn delete<T>(&self, id: &T::IdType) -> Result<u64, Error>
-        where T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn delete_batch<T>(&self, ids: &[T::IdType]) -> Result<(), Error>
-        where T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn fetch<T>(&self, w: &Wrapper) -> Result<T, Error>
-        where T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn fetch_page<T>(&self, w: &Wrapper, page_no: u64, page_size: u64) -> Result<Page<T>, Error>
-        where T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn update<T>(&self, models: &mut [T]) -> Result<(), Error>
-        where T: CRUDTable;
+        where
+            T: CRUDTable;
 }
-
 
 pub struct MysqlStorage {
     config: StorageConfig,
     rb: Rbatis,
 }
 
+impl Clone for MysqlStorage {
+    fn clone(&self) -> Self {
+        Self {
+            config: self.config.clone(),
+            rb: Rbatis::new(),
+        }
+    }
+}
+
 impl MysqlStorage {
     pub fn new(config: StorageConfig) -> Self {
         let opt = RbatisOption::default();
         let rb = Rbatis::new_with_opt(opt);
-        Self {
-            config,
-            rb,
-        }
+        Self { config, rb }
     }
 }
 
@@ -99,35 +107,35 @@ impl Storage for MysqlStorage {
 
             let derive_url = format!(
                 "mysql://{}:{}@{}/{}",
-                self.config.username,
-                self.config.password,
-                self.config.addr,
-                self.config.database);
+                self.config.username, self.config.password, self.config.addr, self.config.database
+            );
             self.rb.link_opt(&derive_url, &link_opt).await.unwrap();
         });
     }
 
     fn save<T>(&self, model: &T) -> Result<(), Error>
-        where T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
             self.rb.save("", model).await
         }) {
             Ok(_) => Ok(()),
-            Err(e) => { Err(Box::new(e)) }
+            Err(e) => Err(Box::new(e)),
         }
     }
 
     fn save_batch<T>(&self, model: &[T]) -> Result<(), Error>
-        where T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
             self.rb.save_batch("", model).await
         }) {
             Ok(_) => Ok(()),
-            Err(e) => { Err(Box::new(e)) }
+            Err(e) => Err(Box::new(e)),
         }
     }
 
@@ -140,36 +148,39 @@ impl Storage for MysqlStorage {
             self.rb.remove_by_id::<T>("", id).await
         }) {
             Ok(v) => Ok(v),
-            Err(e) => { Err(Box::new(e)) }
+            Err(e) => Err(Box::new(e)),
         }
     }
 
     fn delete_batch<T>(&self, ids: &[<T as CRUDTable>::IdType]) -> Result<(), Error>
-        where T: CRUDTable
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
             self.rb.remove_batch_by_id::<T>("", ids).await
         }) {
             Ok(_) => Ok(()),
-            Err(e) => { Err(Box::new(e)) }
+            Err(e) => Err(Box::new(e)),
         }
     }
 
     fn fetch<T>(&self, w: &Wrapper) -> Result<T, Error>
-        where T: CRUDTable
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
             self.rb.fetch_by_wrapper("", w).await
         }) {
             Ok(v) => Ok(v),
-            Err(e) => { Err(Box::new(e)) }
+            Err(e) => Err(Box::new(e)),
         }
     }
 
     fn fetch_page<T>(&self, w: &Wrapper, page_no: u64, page_size: u64) -> Result<Page<T>, Error>
-        where T: CRUDTable
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -177,19 +188,20 @@ impl Storage for MysqlStorage {
             self.rb.fetch_page_by_wrapper("", w, page).await
         }) {
             Ok(v) => Ok(v),
-            Err(e) => { Err(Box::new(e)) }
+            Err(e) => Err(Box::new(e)),
         }
     }
 
     fn update<T>(&self, modes: &mut [T]) -> Result<(), Error>
-        where T: CRUDTable
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
             self.rb.update_batch_by_id("", modes).await
         }) {
             Ok(_) => Ok(()),
-            Err(e) => { Err(Box::new(e)) }
+            Err(e) => Err(Box::new(e)),
         }
     }
 }
@@ -200,8 +212,10 @@ pub struct StorageBuilder {
 }
 
 impl StorageBuilder {
-    pub fn buildr() -> Self {
-        Self { config: StorageConfig::default() }
+    pub fn builder() -> Self {
+        Self {
+            config: StorageConfig::default(),
+        }
     }
 
     pub fn config(self, config: StorageConfig) -> Self {
@@ -215,7 +229,7 @@ impl StorageBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{StorageBuilder, StorageConfig, Storage};
+    use crate::{Storage, StorageBuilder, StorageConfig};
     use rbatis::crud::CRUDTable;
     use serde::Deserialize;
     use serde::Serialize;
@@ -256,9 +270,7 @@ mod tests {
             connect_timeout: 5,
             idle_timeout: 5,
         };
-        let storage = StorageBuilder::buildr()
-            .config(config)
-            .build();
+        let storage = StorageBuilder::builder().config(config).build();
 
         let activity = BizActivity {
             id: Some("12312".to_string()),

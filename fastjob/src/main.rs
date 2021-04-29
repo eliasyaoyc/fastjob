@@ -10,6 +10,7 @@ use fastjob_components_core::{server, ListenAddr};
 use fastjob_components_core::gossip::GossipConfig;
 use fastjob_components_worker::worker_manager;
 use std::io::Error;
+use fastjob_components_storage::StorageConfig;
 
 const EX_USAGE: i32 = 64;
 
@@ -81,11 +82,23 @@ fn main() {
 
 
 pub fn overwrite_config_with_cmd_args(opt: Opt) -> Result<Config, Error> {
+    let config = StorageConfig {
+        addr: "localhost:3306".to_string(),
+        username: "root".to_string(),
+        password: "yaoyichen52".to_string(),
+        database: "neptune".to_string(),
+        max_connections: 20,
+        min_connections: 5,
+        connect_timeout: 5,
+        idle_timeout: 5,
+    };
+
     Ok(Config {
         server: server::ServiceConfig {
             addr: opt.addr,
             gossip: GossipConfig {},
             log_level: "".to_string(),
+            storage_config: config,
         },
         worker_manager: worker_manager::WorkerManagerConfig {},
     })

@@ -21,3 +21,4 @@ fastjob-components-app = {path = "../components/app"}
 fastjob-components-utils = {path = "../components/utils"}
 fastjob-components-worker = { path = "../components/app/worker" }
 fastjob-components-core = { path = "../components/app/core" }
+fastjob-components-storage = { path = "../components/storage" }

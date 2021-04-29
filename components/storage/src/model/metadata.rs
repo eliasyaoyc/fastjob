@@ -1,9 +1,9 @@
+use rbatis::crud::CRUDTable;
+use rbatis::utils::string_util::to_snake_name;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
-use rbatis::crud::CRUDTable;
 use std::fmt::Display;
-use rbatis::utils::string_util::to_snake_name;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Metadata {
@@ -24,9 +24,6 @@ impl CRUDTable for Metadata {
 
 impl Default for Metadata {
     fn default() -> Self {
-        Self {
-            id: None
-        }
+        Self { id: None }
     }
 }
-

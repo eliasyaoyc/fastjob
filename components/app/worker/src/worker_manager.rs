@@ -8,6 +8,7 @@ pub enum WorkerManagerScope {
     ServerSide,
     /// Belongs to `ApplicationSDK`.
     ApplicationSide,
+    EMPTY,
 }
 
 #[derive(Clone, Debug)]
@@ -22,20 +23,35 @@ pub struct WorkerManager {
 }
 
 impl WorkerManager {
-    pub fn build(id: usize, config: &WorkerManagerConfig) -> Self {
+    pub fn builder(config: WorkerManagerConfig) -> Self {
         Self {
-            id,
-            config: config.clone(),
-            scope: WorkerManagerScope::ServerSide,
+            id: 0,
+            config,
+            scope: WorkerManagerScope::EMPTY,
             workers: vec![],
         }
     }
 
-    fn pre_start(&mut self) -> Result<(), Error> {
-        Ok(())
+    pub fn id(mut self, id: usize) -> Self {
+        self.id = id;
+        self
+    }
+
+    pub fn scope(mut self, scope: WorkerManagerScope) -> Self {
+        self.scope = scope;
+        self
+    }
+
+    pub fn build(self) -> Self {
+        // init worker pool.
+        self
     }
 
     pub fn run(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
+
+    pub fn shutdown(&mut self) -> Result<(), Error> {
         Ok(())
     }
 

@@ -1,4 +1,5 @@
 use crate::{gossip::GossipConfig, meta::MetaManager, ListenAddr};
+use crate::services::FastJobService;
 use fastjob_components_error::Error;
 use fastjob_components_scheduler::{Scheduler, SchedulerManger};
 use fastjob_components_utils::{drain, Either};
@@ -14,12 +15,8 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 use futures::prelude::*;
-
-
-use fastjob_proto::helloworld::{HelloReply, HelloRequest};
-use fastjob_proto::helloworld_grpc::{create_greeter, Greeter};
-use crate::services::FastJobService;
-
+use fastjob_proto::fastjob_grpc::create_fast_job;
+use fastjob_components_storage::StorageConfig;
 
 #[derive(Clone, Debug)]
 pub struct ServiceConfig {
@@ -27,6 +24,7 @@ pub struct ServiceConfig {
     /// Consensus algorithm related config.
     pub gossip: GossipConfig,
     pub log_level: String,
+    pub storage_config: StorageConfig,
 }
 
 pub struct Server {
@@ -49,11 +47,13 @@ impl Server {
         let env = Arc::new(EnvBuilder::new().name_prefix("GRPC-SERVER").build());
         let channel_args = ChannelBuilder::new(Arc::clone(&env)).build_args();
 
-        let fastjob_service = FastJobService::new(MetaManager::new());
+        let fastjob_service = FastJobService::new(config.storage_config.clone());
+        fastjob_service.prepare();
 
         let builder = {
             let mut sb = ServerBuilder::new(Arc::clone(&env))
                 .channel_args(channel_args)
+                .register_service(create_fast_job(fastjob_service))
                 .register_service(create_health(health_service.clone()));
             sb = sb.bind(format!("{}", &addr.ip()), addr.port());
             Either::Left(sb)

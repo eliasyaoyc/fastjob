@@ -8,5 +8,6 @@ impl MetaManager {
         Self {}
     }
 
+    pub fn prepare(&self) {}
     pub fn start(&self) {}
 }
