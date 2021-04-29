@@ -12,7 +12,7 @@ use tokio::{
     sync::mpsc,
     time::{self, Duration},
 };
-use fastjob_components_core::server::FastJobServe;
+use fastjob_components_core::server::Server;
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -21,14 +21,14 @@ pub struct Config {
 }
 
 pub struct App {
-    pub server: server::FastJobServe,
+    pub server: server::Server,
     pub worker_manager: worker_manager::WorkerManager,
 }
 
 impl Config {
     /// Only build all components equivalent to initialization, and will not start.
     pub fn build(self, shutdown_tx: mpsc::UnboundedSender<()>) -> Result<App, Error> {
-        let server = server::FastJobServe::build(
+        let server = server::Server::build(
             id_generator::generator_id(GeneratorTyp::Server),
             &self.server,
         );

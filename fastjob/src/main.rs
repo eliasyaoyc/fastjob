@@ -28,9 +28,11 @@ pub struct Opt {
 }
 
 fn main() {
+    tracing_subscriber::fmt::init();
+
     // Command-Line Highest Priority.
     let opt = Opt::from_args();
-    tracing::debug!("recv command-line param {:#?}", opt);
+    println!("recv command-line param {:#?}", opt);
 
     let config = match overwrite_config_with_cmd_args(opt) {
         Ok(config) => config,

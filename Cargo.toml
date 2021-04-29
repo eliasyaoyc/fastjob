@@ -14,10 +14,8 @@ members = [
     "components/tracing",
     "components/utils",
     "components/resouce-constraints",
-    "components/timeout",
-    "components/retry",
-    "components/transport",
-    "components/rocks"
+    "components/storage",
+    "components/log",
 ]
 
 [profile.dev]

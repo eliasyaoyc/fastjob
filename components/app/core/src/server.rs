@@ -4,7 +4,7 @@ use fastjob_components_scheduler::{Scheduler, SchedulerManger};
 use fastjob_components_utils::{drain, Either};
 use fastjob_components_worker::worker_manager::WorkerManager;
 use futures::{future, FutureExt};
-use grpcio::{ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder};
+use grpcio::{ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder, RpcContext, UnarySink};
 use grpcio_health::{create_health, HealthService, ServingStatus};
 use std::future::Future;
 use std::net::{IpAddr, SocketAddr, TcpListener};
@@ -13,6 +13,13 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
+use futures::prelude::*;
+
+
+use fastjob_proto::helloworld::{HelloReply, HelloRequest};
+use fastjob_proto::helloworld_grpc::{create_greeter, Greeter};
+use crate::services::FastJobService;
+
 
 #[derive(Clone, Debug)]
 pub struct ServiceConfig {
@@ -22,7 +29,7 @@ pub struct ServiceConfig {
     pub log_level: String,
 }
 
-pub struct FastJobServe {
+pub struct Server {
     id: usize,
     addr: SocketAddr,
     pub config: ServiceConfig,
@@ -30,13 +37,10 @@ pub struct FastJobServe {
     ///
     /// If the listening port is configured, the server will be started lazily.
     builder_or_server: Option<Either<ServerBuilder, GrpcServer>>,
-    meta_mgr: MetaManager,
-    sched_mgr: SchedulerManger,
-    work_mgrs: Vec<WorkerManager>,
     health_service: HealthService,
 }
 
-impl FastJobServe {
+impl Server {
     pub fn build(id: usize, config: &ServiceConfig) -> Self {
         let addr = SocketAddr::from_str(&config.addr).unwrap();
 
@@ -44,6 +48,8 @@ impl FastJobServe {
 
         let env = Arc::new(EnvBuilder::new().name_prefix("GRPC-SERVER").build());
         let channel_args = ChannelBuilder::new(Arc::clone(&env)).build_args();
+
+        let fastjob_service = FastJobService::new(MetaManager::new());
 
         let builder = {
             let mut sb = ServerBuilder::new(Arc::clone(&env))
@@ -58,16 +64,16 @@ impl FastJobServe {
             addr,
             config: config.clone(),
             builder_or_server: Some(builder),
-            meta_mgr: MetaManager::new(),
-            sched_mgr: SchedulerManger::new(),
-            work_mgrs: vec![],
+            // meta_mgr: MetaManager::new(),
+            // sched_mgr: SchedulerManger::new(),
+            // work_mgrs: vec![],
             health_service,
         };
 
         match serve.pre_start() {
             Ok(_) => {}
             Err(e) => {
-                tracing::error!("init config error {}", e);
+                eprintln!("init config error {}", e);
                 std::process::exit(1);
             }
         };
@@ -110,19 +116,19 @@ impl FastJobServe {
         self.builder_or_server = Some(Either::Right(server));
 
         // 1. start inner scheduler-manager.
-        self.sched_mgr.start();
+        // self.sched_mgr.start();
         // 2. start inner meta-manger.
-        self.meta_mgr.start();
+        // self.meta_mgr.start();
 
         // 3. start fastjob-server.
         let mut grpc_server = self.builder_or_server.take().unwrap().right().unwrap();
-        tracing::info!("listening on addr {}", self.addr);
+        println!("listening on addr {}", self.addr);
         grpc_server.start();
         self.builder_or_server = Some(Either::Right(grpc_server));
 
         self.health_service
             .set_serving_status("", ServingStatus::Serving);
-        tracing::info!("FastJob Server is ready to serve.");
+        println!("FastJob Server is ready to serve.");
         Ok(())
     }
 

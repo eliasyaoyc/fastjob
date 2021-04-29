@@ -7,6 +7,7 @@ mod errors;
 pub mod gossip;
 mod meta;
 pub mod server;
+mod services;
 
 #[derive(Clone)]
 pub struct ListenAddrs(pub Vec<ListenAddr>);
