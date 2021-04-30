@@ -1,3 +1,3 @@
-mod fj;
+mod job_service;
 
-pub use self::fj::Service as FastJobService;
+pub use self::job_service::Service as FastJobService;

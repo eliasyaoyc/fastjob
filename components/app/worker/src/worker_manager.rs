@@ -1,6 +1,9 @@
 use crate::Worker;
 use fastjob_components_error::Error;
 use crate::worker_manager::WorkerManagerScope::ServerSide;
+use crossbeam::channel::Receiver;
+use fastjob_components_storage::model::task::Task;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WorkerManagerScope {
@@ -11,24 +14,33 @@ pub enum WorkerManagerScope {
     EMPTY,
 }
 
+enum WorkerManagerStatus {
+    Ready,
+    Starting,
+}
+
 #[derive(Clone, Debug)]
 pub struct WorkerManagerConfig {}
 
 #[derive(Clone, Debug)]
 pub struct WorkerManager {
     id: usize,
+    status: WorkerManagerStatus,
     config: WorkerManagerConfig,
     scope: WorkerManagerScope,
     workers: Vec<Worker>,
+    tasks: HashMap<u64, Task>,
 }
 
 impl WorkerManager {
     pub fn builder(config: WorkerManagerConfig) -> Self {
         Self {
             id: 0,
+            status: WorkerManagerStatus::Ready,
             config,
             scope: WorkerManagerScope::EMPTY,
             workers: vec![],
+            tasks: HashMap::new(),
         }
     }
 
@@ -55,11 +67,26 @@ impl WorkerManager {
         Ok(())
     }
 
-    pub fn manual_sched(&mut self) -> Result<(), Error> {
+    pub fn register_task(&mut self, task: Task) -> Result<(), Error> {
+        if !self.tasks.contains(&task.task_id.unwrap()) {
+            self.tasks.insert(task.task_id.unwrap().clone(), task);
+        }
         Ok(())
     }
 
-    pub fn sched(&mut self) -> Result<(), Error> {
+    pub fn unregister_task(&mut self, task_id: &u64) -> Result<(), Error> {
+        if self.tasks.contains(task_id) {
+            self.tasks.remove(task_id);
+        }
+        Ok(())
+    }
+
+    /// Manually perform a schedule.
+    pub fn manual_sched(&mut self) -> Result<(), Error> {
+        self.sched()
+    }
+
+    fn sched(&mut self) -> Result<(), Error> {
         Ok(())
     }
 

@@ -130,8 +130,18 @@ impl FastJob for Service {
                      sink: UnarySink<RegisterTaskResponse>)
     {
         let msg = format!("Hello register_task {}", req.get_taskId());
+        dbg!("FastJob recv register task request");
         let mut resp = RegisterTaskResponse::default();
+
+        let task_manager_id = req.get_taskManagerId();
+        if self.work_mgrs.contains_key(&task_manager_id) {
+            let mgr = self.work_mgrs.get_mut(&task_manager_id).unwrap();
+            if mgr
+            mgr.register_task();
+        }
+
         resp.set_message(msg);
+        resp.set_code(GRPC_RESPONSE_CODE);
         let f = sink
             .success(resp)
             .map_err(move |e| format!("failed to reply {:?}: {:?}", req, e))
