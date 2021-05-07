@@ -1,10 +1,13 @@
-use crate::time::{Duration, Instant};
+mod future_pool;
+
 use std::sync::Arc;
-use yatp::pool::{Runner, Local, CloneRunnerBuilder};
-use yatp::task::future::{Runner as FutureRunner, TaskCell};
-use crate::future_pool::FuturePool;
-use yatp::ThreadPool;
+use yatp::pool::{CloneRunnerBuilder, Local, Runner};
 use yatp::queue::{multilevel, QueueType};
+use yatp::task::future::{Runner as FutureRunner, TaskCell};
+use yatp::ThreadPool;
+use future_pool::FuturePool;
+use crate::time::{Duration, Instant};
+
 
 pub(crate) const TICK_INTERVAL: Duration = Duration::from_secs(1);
 
@@ -138,7 +141,7 @@ pub struct YatpPoolBuilder<T: PoolTicker> {
     min_thread_count: usize,
     max_thread_count: usize,
     stack_size: usize,
-    max_task: usize,
+    max_tasks: usize,
 }
 
 impl<T: PoolTicker> YatpPoolBuilder<T> {
@@ -152,7 +155,7 @@ impl<T: PoolTicker> YatpPoolBuilder<T> {
             min_thread_count: 1,
             max_thread_count: 1,
             stack_size: 0,
-            max_task: std::usize::MAX,
+            max_tasks: std::usize::MAX,
         }
     }
 
@@ -211,7 +214,7 @@ impl<T: PoolTicker> YatpPoolBuilder<T> {
     pub fn build_future_pool(&mut self) -> FuturePool {
         let pool = self.build_single_level_pool();
         let name = self.name_prefix.as_deref().unwrap_or("yatp_pool");
-        FuturePool::from_pool(pool, name, self.max_thread_count, self.max_task)
+        FuturePool::from_pool(pool, name, self.max_thread_count, self.max_tasks)
     }
 
     pub fn build_single_level_pool(&mut self) -> ThreadPool<TaskCell> {

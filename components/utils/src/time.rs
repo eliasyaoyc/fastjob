@@ -26,9 +26,77 @@ pub fn duration_to_nanos(d: Duration) -> u64 {
     d.as_secs() * 1_000_000_000 + nanos
 }
 
+use self::inner::monotonic_coarse_now;
+pub use self::inner::monotonic_now;
+/// Returns the monotonic raw time since some unspecified starting point.
+pub use self::inner::monotonic_raw_now;
+
 const NANOSECONDS_PER_SECOND: u64 = 1_000_000_000;
 const MILLISECOND_PER_SECOND: i64 = 1_000;
 const NANOSECONDS_PER_MILLISECOND: i64 = 1_000_000;
+
+
+#[cfg(not(target_os = "linux"))]
+mod inner {
+    use super::NANOSECONDS_PER_SECOND;
+    use time::{self, Timespec};
+
+    pub fn monotonic_raw_now() -> Timespec {
+        // TODO Add monotonic raw clock time impl for macos and windows
+        // Currently use `time::get_precise_ns()` instead.
+        let ns = time::precise_time_ns();
+        let s = ns / NANOSECONDS_PER_SECOND;
+        let ns = ns % NANOSECONDS_PER_SECOND;
+        Timespec::new(s as i64, ns as i32)
+    }
+
+    pub fn monotonic_now() -> Timespec {
+        // TODO Add monotonic clock time impl for macos and windows
+        monotonic_raw_now()
+    }
+
+    pub fn monotonic_coarse_now() -> Timespec {
+        // TODO Add monotonic coarse clock time impl for macos and windows
+        monotonic_raw_now()
+    }
+}
+
+#[cfg(target_os = "linux")]
+mod inner {
+    use std::io;
+    use time::Timespec;
+
+    #[inline]
+    pub fn monotonic_raw_now() -> Timespec {
+        get_time(libc::CLOCK_MONOTONIC_RAW)
+    }
+
+    #[inline]
+    pub fn monotonic_now() -> Timespec {
+        get_time(libc::CLOCK_MONOTONIC)
+    }
+
+    #[inline]
+    pub fn monotonic_coarse_now() -> Timespec {
+        get_time(libc::CLOCK_MONOTONIC_COARSE)
+    }
+
+    #[inline]
+    fn get_time(clock: libc::clockid_t) -> Timespec {
+        let mut t = libc::timespec {
+            tv_sec: 0,
+            tv_nsec: 0,
+        };
+        let errno = unsafe { libc::clock_gettime(clock, &mut t) };
+        if errno != 0 {
+            panic!(
+                "failed to get clocktime, err {}",
+                io::Error::last_os_error()
+            );
+        }
+        Timespec::new(t.tv_sec, t.tv_nsec as _)
+    }
+}
 
 /// A measurement of a monotonically increasing clock.
 /// It's similar and meant to replace `std::tome::Instant`,
@@ -117,11 +185,11 @@ impl Instant {
         if dur >= 0 {
             Duration::from_millis(dur as u64)
         } else {
-            debug!(
-                "coarse time jumped back, {:.3} -> {:.3}",
-                earlier.sec as f64 + f64::from(earlier.nsec) / NANOSECONDS_PER_SECOND as f64,
-                later.sec as f64 + f64::from(later.nsec) / NANOSECONDS_PER_SECOND as f64
-            );
+            // debug!(
+            //     "coarse time jumped back, {:.3} -> {:.3}",
+            //     earlier.sec as f64 + f64::from(earlier.nsec) / NANOSECONDS_PER_SECOND as f64,
+            //     later.sec as f64 + f64::from(later.nsec) / NANOSECONDS_PER_SECOND as f64
+            // );
             Duration::from_millis(0)
         }
     }
