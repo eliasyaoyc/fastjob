@@ -13,6 +13,7 @@ use tokio::{
     time::{self, Duration},
 };
 use fastjob_components_core::server::Server;
+use fastjob_components_worker::worker_manager::WorkerManagerScope::ServerSide;
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -33,10 +34,10 @@ impl Config {
             &self.server,
         );
 
-        let worker_manager = worker_manager::WorkerManager::build(
-            id_generator::generator_id(GeneratorTyp::WorkerManager),
-            &self.worker_manager,
-        );
+        let worker_manager = worker_manager::WorkerManager::builder(self.worker_manager)
+            .id(id_generator::generator_id(GeneratorTyp::WorkerManager))
+            .scope(ServerSide)
+            .build();
 
         Ok(App {
             server,

@@ -3,7 +3,7 @@ use std::fmt::Formatter;
 use std::net::{SocketAddr, ToSocketAddrs};
 
 mod config;
-mod errors;
+mod error;
 pub mod gossip;
 mod meta;
 pub mod server;
