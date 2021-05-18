@@ -30,7 +30,7 @@ pub struct Opt {
 }
 
 fn main() {
-    tracing_subscriber::fmt::init();
+    // tracing_subscriber::fmt::init();
 
     // Command-Line Highest Priority.
     let opt = Opt::from_args();
