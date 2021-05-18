@@ -5,7 +5,8 @@ use serde::Serialize;
 use std::fmt::Display;
 use rbatis::utils::string_util::to_snake_name;
 
-enum TimeExpressionType {
+#[derive(Clone,Debug, Deserialize, Serialize)]
+pub enum TimeExpressionType {
     CRON,
 }
 
@@ -14,7 +15,8 @@ enum ExecuteType {
     URL,
 }
 
-enum TaskStatus {
+#[derive(Clone,Debug, Deserialize, Serialize)]
+pub enum TaskStatus {
     INIT,
     READY,
     RUNNING,

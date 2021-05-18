@@ -2,7 +2,7 @@ use crate::{gossip::GossipConfig, meta::MetaManager, ListenAddr};
 use crate::services::FastJobService;
 use fastjob_components_error::Error;
 use fastjob_components_scheduler::{Scheduler, SchedulerManger};
-use fastjob_components_utils::{drain, Either};
+use fastjob_components_utils::Either;
 use fastjob_components_worker::worker_manager::WorkerManager;
 use futures::{future, FutureExt};
 use grpcio::{ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder, RpcContext, UnarySink};
@@ -17,6 +17,7 @@ use std::time::Duration;
 use futures::prelude::*;
 use fastjob_proto::fastjob_grpc::create_fast_job;
 use fastjob_components_storage::StorageConfig;
+use crate::log::initial_logger;
 
 #[derive(Clone, Debug)]
 pub struct ServiceConfig {
@@ -107,6 +108,9 @@ impl Server {
 
     /// Run the fastJob server.
     pub fn run(&mut self) -> Result<(), Error> {
+        // 1. setup log component.
+        initial_logger(&self.config);
+
         // Build grpc server and bind to address.
         let sb = self.builder_or_server.take().unwrap().left().unwrap();
         let server = sb.build()?;

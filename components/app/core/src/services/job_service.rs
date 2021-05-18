@@ -55,12 +55,14 @@ impl FastJob for Service {
             req.get_workerManagerId(),
             req.get_localAddr());
 
+        let mut resp = RegisterWorkerManagerResponse::default();
+
         let key = req.get_workerManagerId();
 
         if !self.work_mgrs.contains_key(&key) {
             let mut worker_mgr = WorkerManager::builder(req.get_workerManagerConfig())
                 .id(req.get_workerManagerId())
-                .scope(req_get_workerManagerScope())
+                .scope(req.get_workerManagerScope())
                 .build();
 
             // start worker manager.
@@ -107,7 +109,7 @@ impl FastJob for Service {
         ctx.spawn(f)
     }
 
-    fn fetch_worker_mangers(&self,
+    fn fetch_worker_mangers(&mut self,
                             ctx: RpcContext,
                             req: FetchWorkerMangersRequest,
                             sink: UnarySink<FetchWorkerMangersResponse>)
@@ -136,8 +138,8 @@ impl FastJob for Service {
         let task_manager_id = req.get_taskManagerId();
         if self.work_mgrs.contains_key(&task_manager_id) {
             let mgr = self.work_mgrs.get_mut(&task_manager_id).unwrap();
-            if mgr
-            mgr.register_task();
+            // if mgr
+            // mgr.register_task();
         }
 
         resp.set_message(msg);

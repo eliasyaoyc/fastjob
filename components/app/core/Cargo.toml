@@ -21,6 +21,9 @@ tracing = "0.1.23"
 grpcio = "0.8.0"
 grpcio-health = "0.8.0"
 snafu = "0.6.10"
+log = { version = "0.4", features = ["max_level_trace", "release_max_level_debug"] }
+slog = { version = "2.3", features = ["max_level_trace", "release_max_level_debug"] }
+slog-global = { version = "0.1", git = "https://github.com/breeswish/slog-global.git", rev = "d592f88e4dbba5eb439998463054f1a44fbf17b9" }
 fastjob-proto = { git = "https://github.com/eliasyaoyc/fastjob-proto" }
 
 fastjob-components-error = { path = "../../error" }

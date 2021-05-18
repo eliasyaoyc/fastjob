@@ -14,7 +14,8 @@ pub enum WorkerManagerScope {
     EMPTY,
 }
 
-enum WorkerManagerStatus {
+#[derive(Clone, Debug)]
+pub enum WorkerManagerStatus {
     Ready,
     Starting,
 }
@@ -68,14 +69,14 @@ impl WorkerManager {
     }
 
     pub fn register_task(&mut self, task: Task) -> Result<(), Error> {
-        if !self.tasks.contains(&task.task_id.unwrap()) {
+        if !self.tasks.contains_key(&task.task_id.unwrap()) {
             self.tasks.insert(task.task_id.unwrap().clone(), task);
         }
         Ok(())
     }
 
     pub fn unregister_task(&mut self, task_id: &u64) -> Result<(), Error> {
-        if self.tasks.contains(task_id) {
+        if self.tasks.contains_key(task_id) {
             self.tasks.remove(task_id);
         }
         Ok(())
