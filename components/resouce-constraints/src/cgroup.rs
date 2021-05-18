@@ -1,7 +1,7 @@
+use nix::unistd;
+use std::fs;
 use std::path::PathBuf;
 use std::process;
-use std::fs;
-use nix::unistd;
 
 static CGROUP_PATH: &str = "/sys/fs/cgroup/pids";
 

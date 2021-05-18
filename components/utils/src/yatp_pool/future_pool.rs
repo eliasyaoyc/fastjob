@@ -71,8 +71,8 @@ impl FuturePool {
 
     /// Spawns a future in the pool.
     pub fn spawn<F>(&self, future: F) -> Result<(), Full>
-        where
-            F: Future + Send + 'static,
+    where
+        F: Future + Send + 'static,
     {
         let count = self.running_task_count.clone();
         self.gate_spawn()?;
@@ -91,10 +91,10 @@ impl FuturePool {
     pub fn spawn_handle<F>(
         &self,
         future: F,
-    ) -> Result<impl Future<Output=Result<F::Output, Canceled>>, Full>
-        where
-            F: Future + Send + 'static,
-            F::Output: Send,
+    ) -> Result<impl Future<Output = Result<F::Output, Canceled>>, Full>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send,
     {
         let count = self.running_task_count.clone();
         self.gate_spawn()?;
@@ -148,16 +148,16 @@ mod tests {
             pool.spawn_handle(async move {
                 thread::sleep(duration);
             })
-                .unwrap(),
+            .unwrap(),
         )
-            .unwrap();
+        .unwrap();
     }
 
     fn spawn_future_without_wait(pool: &FuturePool, duration: Duration) {
         pool.spawn(async move {
             thread::sleep(duration);
         })
-            .unwrap();
+        .unwrap();
     }
 
     #[derive(Clone)]
@@ -167,8 +167,8 @@ mod tests {
 
     impl SequenceTicker {
         pub fn new<F>(tick: F) -> SequenceTicker
-            where
-                F: Fn() + Send + Sync + 'static,
+        where
+            F: Fn() + Send + Sync + 'static,
         {
             SequenceTicker {
                 tick: Arc::new(tick),
@@ -200,7 +200,7 @@ mod tests {
                 pool.spawn_handle(async move { rx.lock().unwrap().try_recv() })
                     .unwrap(),
             )
-                .unwrap()
+            .unwrap()
         };
 
         assert!(try_recv_tick().is_err());
@@ -320,7 +320,7 @@ mod tests {
         pool: &FuturePool,
         id: u64,
         future_duration_ms: u64,
-    ) -> Result<impl Future<Output=Result<u64, Canceled>>, Full> {
+    ) -> Result<impl Future<Output = Result<u64, Canceled>>, Full> {
         pool.spawn_handle(async move {
             thread::sleep(Duration::from_millis(future_duration_ms));
             id
@@ -328,9 +328,9 @@ mod tests {
     }
 
     fn wait_on_new_thread<F>(sender: mpsc::Sender<F::Output>, future: F)
-        where
-            F: Future + Send + 'static,
-            F::Output: Send + 'static,
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
     {
         thread::spawn(move || {
             let r = block_on(future);

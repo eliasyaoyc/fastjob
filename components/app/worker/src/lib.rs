@@ -1,5 +1,5 @@
-pub mod worker_manager;
 mod worker;
+pub mod worker_manager;
 
 #[derive(Debug, Clone)]
 pub struct Worker {

@@ -2,13 +2,16 @@ use ipnet::IpAdd;
 use std::fmt::Formatter;
 use std::net::{SocketAddr, ToSocketAddrs};
 
+#[macro_use]
+extern crate fastjob_components_log;
+
 mod config;
 mod error;
 pub mod gossip;
+mod log;
 mod meta;
 pub mod server;
 mod services;
-mod log;
 
 #[derive(Clone)]
 pub struct ListenAddrs(pub Vec<ListenAddr>);

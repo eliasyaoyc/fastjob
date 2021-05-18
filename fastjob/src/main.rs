@@ -1,16 +1,17 @@
 mod rt;
 
-use fastjob_components_app::{Config, option};
+use fastjob_components_app::{option, Config};
+use fastjob_components_core::gossip::GossipConfig;
+use fastjob_components_core::{server, ListenAddr};
+use fastjob_components_log::{get_level_by_string, LogFormat};
+use fastjob_components_storage::StorageConfig;
 use fastjob_components_utils::signal;
+use fastjob_proto::fastjob::WorkerManagerConfig;
+use std::io::Error;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use structopt::StructOpt;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
-use structopt::StructOpt;
-use std::net::{SocketAddr, IpAddr, Ipv4Addr};
-use fastjob_components_core::{server, ListenAddr};
-use fastjob_components_core::gossip::GossipConfig;
-use fastjob_components_worker::worker_manager;
-use std::io::Error;
-use fastjob_components_storage::StorageConfig;
 
 const EX_USAGE: i32 = 64;
 
@@ -80,7 +81,6 @@ fn main() {
     // });
 }
 
-
 pub fn overwrite_config_with_cmd_args(opt: Opt) -> Result<Config, Error> {
     let config = StorageConfig {
         addr: "localhost:3306".to_string(),
@@ -97,9 +97,15 @@ pub fn overwrite_config_with_cmd_args(opt: Opt) -> Result<Config, Error> {
         server: server::ServiceConfig {
             addr: opt.addr,
             gossip: GossipConfig {},
-            log_level: "".to_string(),
+            log_level: get_level_by_string(&opt.log_level).unwrap(),
+            log_file: "".to_string(),
+            log_format: LogFormat::Text,
+            slow_log_file: "".to_string(),
+            slow_log_threshold: Default::default(),
+            log_rotation_timespan: Default::default(),
             storage_config: config,
+            log_rotation_size: 0,
         },
-        worker_manager: worker_manager::WorkerManagerConfig {},
+        worker_manager: WorkerManagerConfig::default(),
     })
 }

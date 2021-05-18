@@ -1,5 +1,5 @@
-mod recover;
 mod never;
+mod recover;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 

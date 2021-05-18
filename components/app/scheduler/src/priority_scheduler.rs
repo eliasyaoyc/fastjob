@@ -12,7 +12,7 @@ impl PriorityStrategy {
         return match name {
             "leastTask" => Box::new(LeastTaskPriority::default()),
             "resourceSurplus" => Box::new(ResourceSurplusPriority::default()),
-            _ => panic!("")
+            _ => panic!(""),
         };
     }
 }
@@ -20,8 +20,12 @@ impl PriorityStrategy {
 impl Debug for PriorityStrategy {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            PriorityStrategy::LeastTaskPriority => { writeln!(f, "leastTask") }
-            PriorityStrategy::ResourceSurplusPriority => { writeln!(f, "resourceSurplus") }
+            PriorityStrategy::LeastTaskPriority => {
+                writeln!(f, "leastTask")
+            }
+            PriorityStrategy::ResourceSurplusPriority => {
+                writeln!(f, "resourceSurplus")
+            }
         }
     }
 }
@@ -38,7 +42,7 @@ pub struct PrioritySchedulerProvider {
 impl Default for PrioritySchedulerProvider {
     fn default() -> Self {
         PrioritySchedulerProvider {
-            strategies: Default::default()
+            strategies: Default::default(),
         }
     }
 }

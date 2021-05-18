@@ -1,9 +1,8 @@
-use time::{Duration as TimeDuration, Timespec};
-pub use std::time::Duration;
 use std::cmp::Ordering;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
+pub use std::time::Duration;
+use time::{Duration as TimeDuration, Timespec};
 use tracing::field::debug;
-
 
 /// Converts Duration to milliseconds.
 #[inline]
@@ -34,7 +33,6 @@ pub use self::inner::monotonic_raw_now;
 const NANOSECONDS_PER_SECOND: u64 = 1_000_000_000;
 const MILLISECOND_PER_SECOND: i64 = 1_000;
 const NANOSECONDS_PER_MILLISECOND: i64 = 1_000_000;
-
 
 #[cfg(not(target_os = "linux"))]
 mod inner {

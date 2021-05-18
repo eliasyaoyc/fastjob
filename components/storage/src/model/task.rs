@@ -1,11 +1,11 @@
 use rbatis::crud::{CRUDTable, CRUD};
+use rbatis::utils::string_util::to_snake_name;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;
-use rbatis::utils::string_util::to_snake_name;
 
-#[derive(Clone,Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum TimeExpressionType {
     CRON,
 }
@@ -15,7 +15,7 @@ enum ExecuteType {
     URL,
 }
 
-#[derive(Clone,Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum TaskStatus {
     INIT,
     READY,

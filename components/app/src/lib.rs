@@ -2,19 +2,20 @@ pub mod option;
 
 use crate::option::Opt;
 use fastjob_components_core::gossip::GossipConfig;
+use fastjob_components_core::server::Server;
 use fastjob_components_core::{gossip, server, ListenAddr};
 use fastjob_components_error::Error;
 use fastjob_components_utils::id_generator::GeneratorTyp;
 use fastjob_components_utils::{id_generator, signal_handler};
 use fastjob_components_worker::worker_manager;
+use fastjob_proto::fastjob::{
+    WorkerManagerConfig, WorkerManagerScope, WorkerManagerScope::ServerSide,
+};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener};
 use tokio::{
     sync::mpsc,
     time::{self, Duration},
 };
-use fastjob_components_core::server::Server;
-use fastjob_proto::fastjob::{WorkerManagerScope, WorkerManagerScope::ServerSide, WorkerManagerConfig};
-
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -58,8 +59,12 @@ impl App {
         // setup the global logger.
         initial_logger();
 
-        server.run().unwrap_or_else(|e| tracing::error!("FastJob Server start failure, cause: {}", e));
-        worker_manager.run().unwrap_or_else(|e| tracing::error!("FastJob WorkerManager start failure, cause: {}", e));
+        server
+            .run()
+            .unwrap_or_else(|e| tracing::error!("FastJob Server start failure, cause: {}", e));
+        worker_manager.run().unwrap_or_else(|e| {
+            tracing::error!("FastJob WorkerManager start failure, cause: {}", e)
+        });
 
         signal_handler::wait_for_signal();
 

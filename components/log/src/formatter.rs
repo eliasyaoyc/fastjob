@@ -2,8 +2,8 @@ use std::io;
 
 /// Writes file name into the writer, removes the character which not match `[a-zA-Z0-9\.-_]`
 pub fn write_file_name<W>(writer: &mut W, file_name: &str) -> io::Result<()>
-    where
-        W: io::Write + ?Sized,
+where
+    W: io::Write + ?Sized,
 {
     let mut start = 0;
     let bytes = file_name.as_bytes();
@@ -58,8 +58,8 @@ fn need_json_encode(bytes: &[u8]) -> bool {
 /// [`need json encode`]: #method.need_json_encode
 ///
 pub fn write_escaped_str<W>(writer: &mut W, value: &str) -> io::Result<()>
-    where
-        W: io::Write + ?Sized,
+where
+    W: io::Write + ?Sized,
 {
     if !need_json_encode(value.as_bytes()) {
         writer.write_all(value.as_bytes())?;
@@ -106,7 +106,7 @@ mod tests {
             &mut s,
             "+=!@#$%^&*(){}|:\"<>/?\u{000f} 老虎 tiger 🐅\r\n\\-_1234567890.rs",
         )
-            .unwrap();
+        .unwrap();
         assert_eq!("tiger-_1234567890.rs", &String::from_utf8(s).unwrap())
     }
 }

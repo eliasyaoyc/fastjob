@@ -1,11 +1,11 @@
 use std::time::Duration;
 
-use std::time::{SystemTime};
-use std::path::{Path, PathBuf};
+use chrono::{DateTime, Local};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Error, ErrorKind, Write};
+use std::path::{Path, PathBuf};
 use std::thread::LocalKey;
-use chrono::{Local, DateTime};
+use std::time::SystemTime;
 
 /// Open log file with append mode. Creates a new log file if it doesn't exist
 fn open_log_file(path: impl AsRef<Path>) -> io::Result<File> {
@@ -20,10 +20,7 @@ fn open_log_file(path: impl AsRef<Path>) -> io::Result<File> {
     if !parent.is_dir() {
         fs::create_dir_all(parent)?;
     }
-    OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(path)
+    OpenOptions::new().append(true).create(true).open(path)
 }
 
 /// A trait that describes a file rotation operation.
@@ -66,7 +63,8 @@ pub struct RotatingFileLoggerBuilder {
 
 impl RotatingFileLoggerBuilder {
     pub fn builder<F>(rename: F) -> Self
-        where F: 'static + Send + Fn(&Path) -> io::Result<PathBuf>
+    where
+        F: 'static + Send + Fn(&Path) -> io::Result<PathBuf>,
     {
         Self {
             path: Default::default(),

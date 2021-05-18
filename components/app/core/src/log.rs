@@ -1,16 +1,13 @@
-use crate::server::ServiceConfig;
-use fastjob_components_log::{init_log, term_writer, text_format, json_format, file_writer, LogDispatcher, crit, DATETIME_ROTATE_SUFFIX};
-use fastjob_components_utils::time::duration_to_ms;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::path::{PathBuf, Path};
 use crate::config::ServerConfig;
+use crate::server::ServiceConfig;
 use chrono::Local;
-
-#[derive(Clone, Debug)]
-pub enum LogFormat {
-    Text,
-    Json,
-}
+use fastjob_components_log::{
+    crit, file_writer, init_log, json_format, term_writer, text_format, LogDispatcher, LogFormat,
+    DATETIME_ROTATE_SUFFIX,
+};
+use fastjob_components_utils::time::duration_to_ms;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 // A workaround for checking if log is initialized.
 pub static LOG_INITIALIZED: AtomicBool = AtomicBool::new(false);
@@ -41,11 +38,13 @@ pub fn initial_logger(config: &ServiceConfig) {
             config.log_rotation_timespan,
             config.log_rotation_size,
             rename_by_timestamp,
-        ).unwrap_or_else(|e| {
+        )
+        .unwrap_or_else(|e| {
             fatal!(
                 "failed to initialize log with file {}: {}",
                 config.log_file,
-                e);
+                e
+            );
         });
 
         let slow_log_writer = if config.slow_log_file.is_empty() {
@@ -56,7 +55,8 @@ pub fn initial_logger(config: &ServiceConfig) {
                 config.log_rotation_timespan,
                 config.log_rotation_size,
                 rename_by_timestamp,
-            ).unwrap_or_else(|e| {
+            )
+            .unwrap_or_else(|e| {
                 fatal!(
                     "failed to initialize slow-log with file {}: {}",
                     config.slow_log_file,
@@ -84,9 +84,9 @@ pub fn initial_logger(config: &ServiceConfig) {
 }
 
 fn build_logger<D>(drainer: D, config: &ServiceConfig)
-    where
-        D: slog::Drain + Send + 'static,
-        <D as slog::Drain>::Err: std::fmt::Display,
+where
+    D: slog::Drain + Send + 'static,
+    <D as slog::Drain>::Err: std::fmt::Display,
 {
     // use async drainer and init std log.
     init_log(
@@ -96,15 +96,16 @@ fn build_logger<D>(drainer: D, config: &ServiceConfig)
         true,
         vec![],
         duration_to_ms(config.slow_log_threshold),
-    ).unwrap_or_else(|e| {
-        fatal!("failed to initialize log: {}",e);
+    )
+    .unwrap_or_else(|e| {
+        fatal!("failed to initialize log: {}", e);
     });
 }
 
 fn build_logger_with_slow_log<N, S>(normal: N, slow: Option<S>, config: &ServiceConfig)
-    where
-        N: slog::Drain<Ok=(), Err=std::io::Error> + Send + 'static,
-        S: slog::Drain<Ok=(), Err=std::io::Error> + Send + 'static,
+where
+    N: slog::Drain<Ok = (), Err = std::io::Error> + Send + 'static,
+    S: slog::Drain<Ok = (), Err = std::io::Error> + Send + 'static,
 {
     let drainer = LogDispatcher::new(normal, slow);
 
@@ -115,8 +116,9 @@ fn build_logger_with_slow_log<N, S>(normal: N, slow: Option<S>, config: &Service
         true,
         vec![],
         duration_to_ms(config.slow_log_threshold),
-    ).unwrap_or_else(|e| {
-        fatal!("failed to initialize log: {}",e);
+    )
+    .unwrap_or_else(|e| {
+        fatal!("failed to initialize log: {}", e);
     });
 }
 
@@ -124,9 +126,6 @@ fn build_logger_with_slow_log<N, S>(normal: N, slow: Option<S>, config: &Service
 /// number while rotate by size.
 fn rename_by_timestamp(path: &Path) -> std::io::Result<PathBuf> {
     let mut new_path = path.to_path_buf().into_os_string();
-    new_path.push(format!(
-        ".{}",
-        Local::now().format(DATETIME_ROTATE_SUFFIX)
-    ));
+    new_path.push(format!(".{}", Local::now().format(DATETIME_ROTATE_SUFFIX)));
     Ok(PathBuf::from(new_path))
 }

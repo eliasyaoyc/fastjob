@@ -3,8 +3,10 @@ use fastjob_components_error::Error;
 // use crate::worker_manager::;
 use crossbeam::channel::Receiver;
 use fastjob_components_storage::model::task::Task;
+use fastjob_proto::fastjob::{
+    WorkerManagerConfig, WorkerManagerScope, WorkerManagerScope::ServerSide,
+};
 use std::collections::HashMap;
-use fastjob_proto::fastjob::{WorkerManagerScope, WorkerManagerScope::ServerSide, WorkerManagerConfig};
 
 // #[derive(Debug, Clone, PartialEq, Eq)]
 // pub enum WorkerManagerScope {

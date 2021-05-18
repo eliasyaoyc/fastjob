@@ -1,5 +1,5 @@
-mod priority_scheduler;
 mod primary_scheduler;
+mod priority_scheduler;
 
 // pub enum Scheduler {
 //     PrimaryScheduler,
@@ -8,7 +8,6 @@ mod primary_scheduler;
 
 #[derive(Clone)]
 pub struct SchedulerManger {}
-
 
 impl SchedulerManger {
     pub fn new() -> Self {

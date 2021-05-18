@@ -18,14 +18,13 @@ use slog_term::{Decorator, PlainDecorator, RecordDecorator};
 use self::file_log::{RotateBySize, RotateByTime, RotatingFileLogger, RotatingFileLoggerBuilder};
 
 pub use slog::{FilterFn, Level};
-use std::time::Duration;
 use std::fmt::Arguments;
+use std::time::Duration;
 
 // The suffix appended to the end of rotated log files by datetime log rotator
 // Warning: Diagnostics service parses log files by file name format.
 //          Remember to update the corresponding code when suffix layout is changed.
 pub const DATETIME_ROTATE_SUFFIX: &str = "%Y-%m-%d-%H:%M:%S%.f";
-
 
 // Default is 128.
 // Extended since blocking is set, and we don't want to block very often.
@@ -36,8 +35,13 @@ const SLOG_CHANNEL_SIZE: usize = 10240;
 const SLOG_CHANNEL_OVERFLOW_STRATEGY: OverflowStrategy = OverflowStrategy::Block;
 const TIMESTAMP_FORMAT: &str = "%Y/%m/%d %H:%M:%S%.3f %:z";
 
-
 static LOG_LEVEL: AtomicUsize = AtomicUsize::new(usize::max_value());
+
+#[derive(Clone, Debug)]
+pub enum LogFormat {
+    Text,
+    Json,
+}
 
 /// Makes a thread name with an additional tag inherited from the current thread.
 #[macro_export]
@@ -64,9 +68,9 @@ pub fn init_log<D>(
     mut disabled_targets: Vec<String>,
     slow_threshold: u64,
 ) -> Result<(), SetLoggerError>
-    where
-        D: Drain + Send + 'static,
-        <D as Drain>::Err: std::fmt::Display,
+where
+    D: Drain + Send + 'static,
+    <D as Drain>::Err: std::fmt::Display,
 {
     // Set the initial log level used by the `Drains`.
     LOG_LEVEL.store(level.as_usize(), Ordering::Relaxed);
@@ -93,12 +97,18 @@ pub fn init_log<D>(
             .build()
             .filter_level(level)
             .fuse();
-        let drain = SlowLogFilter { threshold: slow_threshold, inner: drain };
+        let drain = SlowLogFilter {
+            threshold: slow_threshold,
+            inner: drain,
+        };
         let filtered = drain.filter(filter).fuse();
         slog::Logger::root(filtered, slog_o!())
     } else {
         let drain = LogAndFuse(Mutex::new(drain).filter_level(level));
-        let drain = SlowLogFilter { threshold: slow_threshold, inner: drain };
+        let drain = SlowLogFilter {
+            threshold: slow_threshold,
+            inner: drain,
+        };
 
         let filtered = drain.filter(filter).fuse();
         slog::Logger::root(filtered, slog_o!())
@@ -111,8 +121,7 @@ pub fn set_global_logger(
     level: Level,
     init_stdlog: bool,
     logger: slog::Logger,
-) -> Result<(), SetLoggerError>
-{
+) -> Result<(), SetLoggerError> {
     slog_global::set_global(logger);
     if init_stdlog {
         slog_global::redirect_std_log(Some(level))?;
@@ -130,15 +139,15 @@ pub fn file_writer<N>(
     rotation_size: u64,
     rename: N,
 ) -> io::Result<BufWriter<RotatingFileLogger>>
-    where
-        N: 'static + Send + Fn(&Path) -> io::Result<PathBuf>,
+where
+    N: 'static + Send + Fn(&Path) -> io::Result<PathBuf>,
 {
     let logger = BufWriter::new(
         RotatingFileLoggerBuilder::builder(rename)
             .add_path(path)
             .add_rotator(RotateByTime::new(rotation_timespan))
             .add_rotator(RotateBySize::new(rotation_size))
-            .build()?
+            .build()?,
     );
     Ok(logger)
 }
@@ -150,18 +159,17 @@ pub fn term_writer() -> io::Stderr {
 
 /// Formats output logs to "FastJob Log Format".
 pub fn text_format<W>(io: W) -> FastJobFormat<PlainDecorator<W>>
-    where
-        W: io::Write,
+where
+    W: io::Write,
 {
     let decorator = PlainDecorator::new(io);
     FastJobFormat::new(decorator)
 }
 
-
 /// Formats output logs to JSON format.
 pub fn json_format<W>(io: W) -> slog_json::Json<W>
-    where
-        W: io::Write,
+where
+    W: io::Write,
 {
     slog_json::Json::new(io)
         .set_newlines(true)
@@ -248,16 +256,16 @@ pub fn set_log_level(new_level: Level) {
     LOG_LEVEL.store(new_level.as_usize(), Ordering::SeqCst)
 }
 
-
 pub struct FastJobFormat<D>
-    where
-        D: Decorator,
+where
+    D: Decorator,
 {
     decorator: D,
 }
 
 impl<D> FastJobFormat<D>
-    where D: Decorator,
+where
+    D: Decorator,
 {
     pub fn new(decorator: D) -> Self {
         Self { decorator }
@@ -265,7 +273,8 @@ impl<D> FastJobFormat<D>
 }
 
 impl<D> Drain for FastJobFormat<D>
-    where D: Decorator
+where
+    D: Decorator,
 {
     type Ok = ();
     type Err = io::Error;
@@ -291,8 +300,9 @@ impl<D> Drain for FastJobFormat<D>
 struct LogAndFuse<D>(D);
 
 impl<D> Drain for LogAndFuse<D>
-    where D: Drain,
-          <D as Drain>::Err: std::fmt::Display,
+where
+    D: Drain,
+    <D as Drain>::Err: std::fmt::Display,
 {
     type Ok = ();
     type Err = slog::Never;
@@ -321,8 +331,8 @@ struct SlowLogFilter<D> {
 }
 
 impl<D> Drain for SlowLogFilter<D>
-    where
-        D: Drain<Ok=(), Err=slog::Never>,
+where
+    D: Drain<Ok = (), Err = slog::Never>,
 {
     type Ok = ();
     type Err = slog::Never;
@@ -364,7 +374,6 @@ impl slog::Value for LogCost {
     }
 }
 
-
 /// Dispatches logs to a normal `Drain` or a slow-log specialized `Drain` by tag
 pub struct LogDispatcher<N: Drain, S: Drain> {
     normal: N,
@@ -373,17 +382,14 @@ pub struct LogDispatcher<N: Drain, S: Drain> {
 
 impl<N: Drain, S: Drain> LogDispatcher<N, S> {
     pub fn new(normal: N, slow: Option<S>) -> Self {
-        Self {
-            normal,
-            slow,
-        }
+        Self { normal, slow }
     }
 }
 
 impl<N, S> Drain for LogDispatcher<N, S>
-    where
-        N: Drain<Ok=(), Err=io::Error>,
-        S: Drain<Ok=(), Err=io::Error>,
+where
+    N: Drain<Ok = (), Err = io::Error>,
+    S: Drain<Ok = (), Err = io::Error>,
 {
     type Ok = ();
     type Err = io::Error;
@@ -401,7 +407,11 @@ impl<N, S> Drain for LogDispatcher<N, S>
 /// Writes log header to decorator.
 fn write_log_header(decorator: &mut dyn RecordDecorator, record: &Record<'_>) -> io::Result<()> {
     decorator.start_timestamp()?;
-    write!(decorator, "[{}]", chrono::Local::now().format(TIMESTAMP_FORMAT))?;
+    write!(
+        decorator,
+        "[{}]",
+        chrono::Local::now().format(TIMESTAMP_FORMAT)
+    )?;
 
     decorator.start_whitespace()?;
     write!(decorator, " ")?;
@@ -507,5 +517,3 @@ impl<'a> slog::Serializer for Serializer<'a> {
         Ok(())
     }
 }
-
-

@@ -1,11 +1,18 @@
-use crate::{gossip::GossipConfig, meta::MetaManager, ListenAddr};
+use crate::log::initial_logger;
 use crate::services::FastJobService;
+use crate::{gossip::GossipConfig, meta::MetaManager, ListenAddr};
 use fastjob_components_error::Error;
+use fastjob_components_log::LogFormat;
 use fastjob_components_scheduler::{Scheduler, SchedulerManger};
+use fastjob_components_storage::StorageConfig;
 use fastjob_components_utils::Either;
 use fastjob_components_worker::worker_manager::WorkerManager;
+use fastjob_proto::fastjob_grpc::create_fast_job;
+use futures::prelude::*;
 use futures::{future, FutureExt};
-use grpcio::{ChannelBuilder, EnvBuilder, Server as GrpcServer, ServerBuilder, RpcContext, UnarySink};
+use grpcio::{
+    ChannelBuilder, EnvBuilder, RpcContext, Server as GrpcServer, ServerBuilder, UnarySink,
+};
 use grpcio_health::{create_health, HealthService, ServingStatus};
 use std::future::Future;
 use std::net::{IpAddr, SocketAddr, TcpListener};
@@ -14,10 +21,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use futures::prelude::*;
-use fastjob_proto::fastjob_grpc::create_fast_job;
-use fastjob_components_storage::StorageConfig;
-use crate::log::{initial_logger, LogFormat};
 
 #[derive(Clone, Debug)]
 pub struct ServiceConfig {
@@ -80,7 +83,7 @@ impl Server {
         match serve.pre_start() {
             Ok(_) => {}
             Err(e) => {
-                eprintln!("init config error {}", e);
+                error!("init config error {}", e);
                 std::process::exit(1);
             }
         };
@@ -132,13 +135,13 @@ impl Server {
 
         // 3. start fastjob-server.
         let mut grpc_server = self.builder_or_server.take().unwrap().right().unwrap();
-        println!("listening on addr {}", self.addr);
+        info!("listening on addr {}", self.addr);
         grpc_server.start();
         self.builder_or_server = Some(Either::Right(grpc_server));
 
         self.health_service
             .set_serving_status("", ServingStatus::Serving);
-        println!("FastJob Server is ready to serve.");
+        info!("FastJob Server is ready to serve.");
         Ok(())
     }
 

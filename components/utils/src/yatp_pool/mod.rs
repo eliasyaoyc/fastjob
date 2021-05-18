@@ -1,13 +1,12 @@
 mod future_pool;
 
+use crate::time::{Duration, Instant};
+use future_pool::FuturePool;
 use std::sync::Arc;
 use yatp::pool::{CloneRunnerBuilder, Local, Runner};
 use yatp::queue::{multilevel, QueueType};
 use yatp::task::future::{Runner as FutureRunner, TaskCell};
 use yatp::ThreadPool;
-use future_pool::FuturePool;
-use crate::time::{Duration, Instant};
-
 
 pub(crate) const TICK_INTERVAL: Duration = Duration::from_secs(1);
 
@@ -86,7 +85,6 @@ impl<T: PoolTicker> Runner for YatpPoolRunner<T> {
         }
     }
 
-
     fn handle(&mut self, local: &mut Local<Self::TaskCell>, task_cell: Self::TaskCell) -> bool {
         let finished = self.inner.handle(local, task_cell);
         self.ticker.try_tick();
@@ -120,8 +118,7 @@ impl<T: PoolTicker> YatpPoolRunner<T> {
         after_start: Option<Arc<dyn Fn() + Send + Sync>>,
         before_stop: Option<Arc<dyn Fn() + Send + Sync>>,
         before_pause: Option<Arc<dyn Fn() + Send + Sync>>,
-    ) -> Self
-    {
+    ) -> Self {
         Self {
             inner,
             ticker,
@@ -188,24 +185,24 @@ impl<T: PoolTicker> YatpPoolBuilder<T> {
     }
 
     pub fn before_stop<F>(&mut self, f: F) -> &mut Self
-        where
-            F: Fn() + Send + Sync + 'static,
+    where
+        F: Fn() + Send + Sync + 'static,
     {
         self.before_stop = Some(Arc::new(f));
         self
     }
 
     pub fn after_start<F>(&mut self, f: F) -> &mut Self
-        where
-            F: Fn() + Send + Sync + 'static,
+    where
+        F: Fn() + Send + Sync + 'static,
     {
         self.after_start = Some(Arc::new(f));
         self
     }
 
     pub fn before_pause<F>(&mut self, f: F) -> &mut Self
-        where
-            F: Fn() + Send + Sync + 'static,
+    where
+        F: Fn() + Send + Sync + 'static,
     {
         self.before_pause = Some(Arc::new(f));
         self
@@ -237,7 +234,8 @@ impl<T: PoolTicker> YatpPoolBuilder<T> {
     }
 
     fn create_builder(&mut self) -> (yatp::Builder, YatpPoolRunner<T>) {
-        let mut builder = yatp::Builder::new(self.name_prefix.clone().unwrap_or_else(|| "".to_string()));
+        let mut builder =
+            yatp::Builder::new(self.name_prefix.clone().unwrap_or_else(|| "".to_string()));
         builder
             .stack_size(self.stack_size)
             .min_thread_count(self.min_thread_count)

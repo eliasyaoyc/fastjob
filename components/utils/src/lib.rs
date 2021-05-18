@@ -1,5 +1,5 @@
-pub mod signal;
 pub mod id_generator;
+pub mod signal;
 pub mod signal_handler;
 pub mod time;
 pub mod yatp_pool;
