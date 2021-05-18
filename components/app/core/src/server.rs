@@ -17,15 +17,21 @@ use std::time::Duration;
 use futures::prelude::*;
 use fastjob_proto::fastjob_grpc::create_fast_job;
 use fastjob_components_storage::StorageConfig;
-use crate::log::initial_logger;
+use crate::log::{initial_logger, LogFormat};
 
 #[derive(Clone, Debug)]
 pub struct ServiceConfig {
     pub addr: String,
     /// Consensus algorithm related config.
     pub gossip: GossipConfig,
-    pub log_level: String,
     pub storage_config: StorageConfig,
+    pub log_level: slog::Level,
+    pub log_file: String,
+    pub log_format: LogFormat,
+    pub slow_log_file: String,
+    pub slow_log_threshold: Duration,
+    pub log_rotation_timespan: Duration,
+    pub log_rotation_size: u64,
 }
 
 pub struct Server {

@@ -1,7 +1,7 @@
 pub mod signal;
 pub mod id_generator;
 pub mod signal_handler;
-mod time;
+pub mod time;
 pub mod yatp_pool;
 
 /// Represents a value of one of two possible types(a more generic Result.)
