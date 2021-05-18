@@ -39,13 +39,13 @@ pub fn initial_logger(config: &ServiceConfig) {
             config.log_rotation_size,
             rename_by_timestamp,
         )
-        .unwrap_or_else(|e| {
-            fatal!(
+            .unwrap_or_else(|e| {
+                fatal!(
                 "failed to initialize log with file {}: {}",
                 config.log_file,
                 e
             );
-        });
+            });
 
         let slow_log_writer = if config.slow_log_file.is_empty() {
             None
@@ -56,13 +56,13 @@ pub fn initial_logger(config: &ServiceConfig) {
                 config.log_rotation_size,
                 rename_by_timestamp,
             )
-            .unwrap_or_else(|e| {
-                fatal!(
+                .unwrap_or_else(|e| {
+                    fatal!(
                     "failed to initialize slow-log with file {}: {}",
                     config.slow_log_file,
                     e
                 );
-            });
+                });
             Some(slow_log_writer)
         };
 
@@ -84,9 +84,9 @@ pub fn initial_logger(config: &ServiceConfig) {
 }
 
 fn build_logger<D>(drainer: D, config: &ServiceConfig)
-where
-    D: slog::Drain + Send + 'static,
-    <D as slog::Drain>::Err: std::fmt::Display,
+    where
+        D: slog::Drain + Send + 'static,
+        <D as slog::Drain>::Err: std::fmt::Display,
 {
     // use async drainer and init std log.
     init_log(
@@ -96,16 +96,15 @@ where
         true,
         vec![],
         duration_to_ms(config.slow_log_threshold),
-    )
-    .unwrap_or_else(|e| {
+    ).unwrap_or_else(|e| {
         fatal!("failed to initialize log: {}", e);
     });
 }
 
 fn build_logger_with_slow_log<N, S>(normal: N, slow: Option<S>, config: &ServiceConfig)
-where
-    N: slog::Drain<Ok = (), Err = std::io::Error> + Send + 'static,
-    S: slog::Drain<Ok = (), Err = std::io::Error> + Send + 'static,
+    where
+        N: slog::Drain<Ok=(), Err=std::io::Error> + Send + 'static,
+        S: slog::Drain<Ok=(), Err=std::io::Error> + Send + 'static,
 {
     let drainer = LogDispatcher::new(normal, slow);
 
@@ -116,8 +115,7 @@ where
         true,
         vec![],
         duration_to_ms(config.slow_log_threshold),
-    )
-    .unwrap_or_else(|e| {
+    ).unwrap_or_else(|e| {
         fatal!("failed to initialize log: {}", e);
     });
 }

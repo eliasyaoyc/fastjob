@@ -56,9 +56,6 @@ impl App {
             mut worker_manager,
         } = self;
 
-        // setup the global logger.
-        initial_logger();
-
         server
             .run()
             .unwrap_or_else(|e| tracing::error!("FastJob Server start failure, cause: {}", e));
@@ -87,6 +84,3 @@ impl App {
 
     pub fn stop(self) {}
 }
-
-#[allow(dead_code)]
-pub fn initial_logger() {}

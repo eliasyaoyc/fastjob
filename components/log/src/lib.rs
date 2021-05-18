@@ -68,11 +68,11 @@ pub fn init_log<D>(
     mut disabled_targets: Vec<String>,
     slow_threshold: u64,
 ) -> Result<(), SetLoggerError>
-where
-    D: Drain + Send + 'static,
-    <D as Drain>::Err: std::fmt::Display,
+    where
+        D: Drain + Send + 'static,
+        <D as Drain>::Err: std::fmt::Display,
 {
-    // Set the initial log level used by the `Drains`.
+    // Set the initial log level used by the Drains
     LOG_LEVEL.store(level.as_usize(), Ordering::Relaxed);
 
     // Only for debug purpose, so use environment instead of configuration file.
@@ -82,6 +82,7 @@ where
 
     let filter = move |record: &Record| {
         if !disabled_targets.is_empty() {
+            // Here get the highest level module name to check.
             let module = record.module().splitn(2, "::").next().unwrap();
             disabled_targets.iter().all(|target| target != module)
         } else {
@@ -109,7 +110,6 @@ where
             threshold: slow_threshold,
             inner: drain,
         };
-
         let filtered = drain.filter(filter).fuse();
         slog::Logger::root(filtered, slog_o!())
     };
@@ -124,6 +124,8 @@ pub fn set_global_logger(
 ) -> Result<(), SetLoggerError> {
     slog_global::set_global(logger);
     if init_stdlog {
+        let a = log::logger();
+
         slog_global::redirect_std_log(Some(level))?;
         grpcio::redirect_log();
     }
@@ -139,8 +141,8 @@ pub fn file_writer<N>(
     rotation_size: u64,
     rename: N,
 ) -> io::Result<BufWriter<RotatingFileLogger>>
-where
-    N: 'static + Send + Fn(&Path) -> io::Result<PathBuf>,
+    where
+        N: 'static + Send + Fn(&Path) -> io::Result<PathBuf>,
 {
     let logger = BufWriter::new(
         RotatingFileLoggerBuilder::builder(rename)
@@ -159,8 +161,8 @@ pub fn term_writer() -> io::Stderr {
 
 /// Formats output logs to "FastJob Log Format".
 pub fn text_format<W>(io: W) -> FastJobFormat<PlainDecorator<W>>
-where
-    W: io::Write,
+    where
+        W: io::Write,
 {
     let decorator = PlainDecorator::new(io);
     FastJobFormat::new(decorator)
@@ -168,8 +170,8 @@ where
 
 /// Formats output logs to JSON format.
 pub fn json_format<W>(io: W) -> slog_json::Json<W>
-where
-    W: io::Write,
+    where
+        W: io::Write,
 {
     slog_json::Json::new(io)
         .set_newlines(true)
@@ -257,15 +259,15 @@ pub fn set_log_level(new_level: Level) {
 }
 
 pub struct FastJobFormat<D>
-where
-    D: Decorator,
+    where
+        D: Decorator,
 {
     decorator: D,
 }
 
 impl<D> FastJobFormat<D>
-where
-    D: Decorator,
+    where
+        D: Decorator,
 {
     pub fn new(decorator: D) -> Self {
         Self { decorator }
@@ -273,8 +275,8 @@ where
 }
 
 impl<D> Drain for FastJobFormat<D>
-where
-    D: Decorator,
+    where
+        D: Decorator,
 {
     type Ok = ();
     type Err = io::Error;
@@ -300,9 +302,9 @@ where
 struct LogAndFuse<D>(D);
 
 impl<D> Drain for LogAndFuse<D>
-where
-    D: Drain,
-    <D as Drain>::Err: std::fmt::Display,
+    where
+        D: Drain,
+        <D as Drain>::Err: std::fmt::Display,
 {
     type Ok = ();
     type Err = slog::Never;
@@ -331,8 +333,8 @@ struct SlowLogFilter<D> {
 }
 
 impl<D> Drain for SlowLogFilter<D>
-where
-    D: Drain<Ok = (), Err = slog::Never>,
+    where
+        D: Drain<Ok=(), Err=slog::Never>,
 {
     type Ok = ();
     type Err = slog::Never;
@@ -387,9 +389,9 @@ impl<N: Drain, S: Drain> LogDispatcher<N, S> {
 }
 
 impl<N, S> Drain for LogDispatcher<N, S>
-where
-    N: Drain<Ok = (), Err = io::Error>,
-    S: Drain<Ok = (), Err = io::Error>,
+    where
+        N: Drain<Ok=(), Err=io::Error>,
+        S: Drain<Ok=(), Err=io::Error>,
 {
     type Ok = ();
     type Err = io::Error;
