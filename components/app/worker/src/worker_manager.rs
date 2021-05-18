@@ -1,18 +1,19 @@
 use crate::Worker;
 use fastjob_components_error::Error;
-use crate::worker_manager::WorkerManagerScope::ServerSide;
+// use crate::worker_manager::;
 use crossbeam::channel::Receiver;
 use fastjob_components_storage::model::task::Task;
 use std::collections::HashMap;
+use fastjob_proto::fastjob::{WorkerManagerScope, WorkerManagerScope::ServerSide, WorkerManagerConfig};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum WorkerManagerScope {
-    /// Belongs to `FastJobServer`.
-    ServerSide,
-    /// Belongs to `ApplicationSDK`.
-    ApplicationSide,
-    EMPTY,
-}
+// #[derive(Debug, Clone, PartialEq, Eq)]
+// pub enum WorkerManagerScope {
+//     /// Belongs to `FastJobServer`.
+//     ServerSide,
+//     /// Belongs to `ApplicationSDK`.
+//     ApplicationSide,
+//     EMPTY,
+// }
 
 #[derive(Clone, Debug)]
 pub enum WorkerManagerStatus {
@@ -20,12 +21,12 @@ pub enum WorkerManagerStatus {
     Starting,
 }
 
-#[derive(Clone, Debug)]
-pub struct WorkerManagerConfig {}
+// #[derive(Clone, Debug)]
+// pub struct WorkerManagerConfig {}
 
 #[derive(Clone, Debug)]
 pub struct WorkerManager {
-    id: usize,
+    id: u64,
     status: WorkerManagerStatus,
     config: WorkerManagerConfig,
     scope: WorkerManagerScope,
@@ -34,18 +35,18 @@ pub struct WorkerManager {
 }
 
 impl WorkerManager {
-    pub fn builder(config: WorkerManagerConfig) -> Self {
+    pub fn builder(config: &WorkerManagerConfig) -> Self {
         Self {
             id: 0,
             status: WorkerManagerStatus::Ready,
-            config,
+            config: config.clone(),
             scope: WorkerManagerScope::EMPTY,
             workers: vec![],
             tasks: HashMap::new(),
         }
     }
 
-    pub fn id(mut self, id: usize) -> Self {
+    pub fn id(mut self, id: u64) -> Self {
         self.id = id;
         self
     }

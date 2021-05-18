@@ -94,10 +94,11 @@ impl FastJob for Service {
         let key = req.get_workerManagerId();
 
         if self.work_mgrs.contains_key(&key) {
-            match self.work_mgrs.remove(&key) {
+            let res = match self.work_mgrs.remove(&key) {
                 Some(mut m) => m.shutdown(),
-                None => {}
-            }
+                None => { Ok(()) }
+            };
+
         }
 
         resp.set_message(msg);
@@ -109,13 +110,13 @@ impl FastJob for Service {
         ctx.spawn(f)
     }
 
-    fn fetch_worker_mangers(&mut self,
-                            ctx: RpcContext,
-                            req: FetchWorkerMangersRequest,
-                            sink: UnarySink<FetchWorkerMangersResponse>)
+    fn fetch_worker_managers(&mut self,
+                             ctx: RpcContext,
+                             req: FetchWorkerManagersRequest,
+                             sink: UnarySink<FetchWorkerManagersResponse>)
     {
         dbg!("FastJob recv fetch worker managers request");
-        let mut resp = UnRegisterWorkerManagerResponse::default();
+        let mut resp = FetchWorkerManagersResponse::default();
         let msg = format!("{:#?}", self.work_mgrs);
         resp.set_message(msg);
         resp.set_code(GRPC_RESPONSE_CODE);

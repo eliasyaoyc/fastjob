@@ -14,4 +14,4 @@ fastjob-components-error = { path = "../error" }
 fastjob-components-utils = { path = "../utils" }
 fastjob-components-worker = { path = "./worker" }
 fastjob-components-core = { path = "./core" }
-
+fastjob-proto = { git = "https://github.com/eliasyaoyc/fastjob-proto" }

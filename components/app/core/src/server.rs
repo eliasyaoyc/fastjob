@@ -29,7 +29,7 @@ pub struct ServiceConfig {
 }
 
 pub struct Server {
-    id: usize,
+    id: u64,
     addr: SocketAddr,
     pub config: ServiceConfig,
     /// A GrpcServer build or a GrpcServer.
@@ -40,7 +40,7 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn build(id: usize, config: &ServiceConfig) -> Self {
+    pub fn build(id: u64, config: &ServiceConfig) -> Self {
         let addr = SocketAddr::from_str(&config.addr).unwrap();
 
         let health_service = HealthService::default();

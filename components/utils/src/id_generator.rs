@@ -4,6 +4,6 @@ pub enum GeneratorTyp {
 }
 
 /// Generator unique id.
-pub fn generator_id(typ: GeneratorTyp) -> usize {
+pub fn generator_id(typ: GeneratorTyp) -> u64 {
     1
 }
