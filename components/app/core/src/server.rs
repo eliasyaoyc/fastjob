@@ -4,7 +4,7 @@ use crate::{gossip::GossipConfig, meta::MetaManager, ListenAddr};
 use fastjob_components_error::Error;
 use fastjob_components_log::LogFormat;
 use fastjob_components_scheduler::{Scheduler, SchedulerManger};
-use fastjob_components_storage::StorageConfig;
+use fastjob_components_storage::{StorageConfig, StorageBuilder};
 use fastjob_components_utils::Either;
 use fastjob_components_worker::worker_manager::WorkerManager;
 use fastjob_proto::fastjob_grpc::create_fast_job;
@@ -21,6 +21,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
+use fastjob_components_utils::component::Component;
 
 #[derive(Clone, Debug)]
 pub struct ServiceConfig {
@@ -46,6 +47,7 @@ pub struct Server {
     /// If the listening port is configured, the server will be started lazily.
     builder_or_server: Option<Either<ServerBuilder, GrpcServer>>,
     health_service: HealthService,
+    components: Vec<Box<dyn Component>>,
 }
 
 impl Server {
@@ -69,6 +71,11 @@ impl Server {
             Either::Left(sb)
         };
 
+        let storage = StorageBuilder::builder().config(config.storage_config.clone()).build();
+
+        let meta_mgr = MetaManager::new();
+        let scheduler_mgr = SchedulerManger::new();
+        let components: Vec<Box<dyn Component>> = vec![Box::new(storage), Box::new(meta_mgr), Box::new(scheduler_mgr)];
         let serve = Self {
             id,
             addr,
@@ -78,12 +85,13 @@ impl Server {
             // sched_mgr: SchedulerManger::new(),
             // work_mgrs: vec![],
             health_service,
+            components,
         };
 
         match serve.pre_start() {
             Ok(_) => {}
             Err(e) => {
-                error!("init config error {}", e);
+                error!("init config error {}.", e);
                 std::process::exit(1);
             }
         };
@@ -137,7 +145,7 @@ impl Server {
 
         // 3. start fastjob-server.
         let mut grpc_server = self.builder_or_server.take().unwrap().right().unwrap();
-        info!("listening on addr {}", self.addr);
+        info!("listening on addr {}.", self.addr);
         grpc_server.start();
         self.builder_or_server = Some(Either::Right(grpc_server));
 
@@ -158,6 +166,6 @@ impl Server {
     }
 }
 
-fn log_info(){
-    info!("Welcome to FastJob");
+fn log_info() {
+    info!("Welcome to FastJob.");
 }

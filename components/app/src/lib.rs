@@ -36,7 +36,7 @@ impl Config {
             &self.server,
         );
 
-        let worker_manager = worker_manager::WorkerManager::builder(&self.worker_manager)
+        let worker_manager = worker_manager::WorkerManagerBuilder::builder(self.worker_manager.clone())
             .id(id_generator::generator_id(GeneratorTyp::WorkerManager))
             .scope(ServerSide)
             .build();
@@ -59,9 +59,10 @@ impl App {
         server
             .run()
             .unwrap_or_else(|e| tracing::error!("FastJob Server start failure, cause: {}", e));
-        worker_manager.run().unwrap_or_else(|e| {
-            tracing::error!("FastJob WorkerManager start failure, cause: {}", e)
-        });
+
+        // worker_manager.run().unwrap_or_else(|e| {
+        //     tracing::error!("FastJob WorkerManager start failure, cause: {}", e)
+        // });
 
         signal_handler::wait_for_signal();
 

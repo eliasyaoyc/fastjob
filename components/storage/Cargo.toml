@@ -16,3 +16,4 @@ rbatis = { version = "1.8" }
 ## logging lib(required)
 log = "0.4"
 fast_log="1.3"
+fastjob-components-utils = { path = "../utils" }

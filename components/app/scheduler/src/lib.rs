@@ -1,3 +1,5 @@
+use fastjob_components_utils::component::Component;
+
 mod primary_scheduler;
 mod priority_scheduler;
 
@@ -13,8 +15,20 @@ impl SchedulerManger {
     pub fn new() -> Self {
         Self {}
     }
-    pub fn prepare(&self) {}
-    pub fn start(&self) {}
+}
+
+impl Component for SchedulerManger {
+    fn prepare(&self) {
+        todo!()
+    }
+
+    fn start(&self) {
+        todo!()
+    }
+
+    fn stop(&self) {
+        todo!()
+    }
 }
 
 pub trait Scheduler {

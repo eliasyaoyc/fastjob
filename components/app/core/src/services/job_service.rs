@@ -1,43 +1,54 @@
 use crate::meta::MetaManager;
 use fastjob_components_scheduler::SchedulerManger;
 use fastjob_components_storage::{MysqlStorage, Storage, StorageBuilder, StorageConfig};
-use fastjob_components_worker::worker_manager::WorkerManager;
+use fastjob_components_worker::worker_manager::{WorkerManager, WorkerManagerBuilder};
 use fastjob_proto::fastjob::*;
 use fastjob_proto::fastjob_grpc::FastJob;
 use futures::prelude::*;
 use grpcio::{RpcContext, UnarySink};
 use std::collections::HashMap;
+use fastjob_components_utils::component::Component;
+use std::iter::Once;
 
 const GRPC_RESPONSE_CODE: u64 = 200;
 
 /// Service handles the RPC messages for the `FastJob` service.
 #[derive(Clone)]
 pub struct Service {
-    storage: MysqlStorage,
-    meta_mgr: MetaManager,
-    sched_mgr: SchedulerManger,
+    // components: Vec<Box<dyn Component>>,
+    // storage: MysqlStorage,
+    // meta_mgr: MetaManager,
+    // sched_mgr: SchedulerManger,
     work_mgrs: HashMap<u64, WorkerManager>,
 }
 
 impl Service {
     pub fn new(config: StorageConfig) -> Self {
-        let storage = StorageBuilder::builder().config(config).build();
+        // let storage = StorageBuilder::builder().config(config).build();
 
-        let meta_mgr = MetaManager::new();
+        // let meta_mgr = MetaManager::new();
+        // let scheduler_mgr = SchedulerManger::new();
+        // let components = vec![Box::new(storage), Box::new(meta_mgr), Box::new(scheduler_mgr)];
         Self {
-            storage,
-            meta_mgr,
-            sched_mgr: SchedulerManger::new(),
+            // storage,
+            // meta_mgr,
+            // sched_mgr: SchedulerManger::new(),
+            // components,
             work_mgrs: HashMap::new(),
         }
     }
 
     /// Prepare inner components.
     pub fn prepare(&self) {
-        // prepare mysqlStorage.
-        self.storage.prepare();
-        self.meta_mgr.prepare();
-        self.sched_mgr.prepare();
+        // prepare all components.
+        // if !self.components.is_empty() {
+        //     for elem in self.components.iter() {
+        //         elem.prepare();
+        //     }
+        // }
+        // self.storage.prepare();
+        // self.meta_mgr.prepare();
+        // self.sched_mgr.prepare();
     }
 }
 
@@ -64,13 +75,13 @@ impl FastJob for Service {
         let key = req.get_workerManagerId();
 
         if !self.work_mgrs.contains_key(&key) {
-            let mut worker_mgr = WorkerManager::builder(req.get_workerManagerConfig())
+            let mut worker_mgr = WorkerManagerBuilder::builder(req.get_workerManagerConfig().clone())
                 .id(req.get_workerManagerId())
                 .scope(req.get_workerManagerScope())
                 .build();
 
             // start worker manager.
-            worker_mgr.run();
+            worker_mgr.start();
             self.work_mgrs.insert(key, worker_mgr);
         }
 
@@ -105,8 +116,8 @@ impl FastJob for Service {
 
         if self.work_mgrs.contains_key(&key) {
             let res = match self.work_mgrs.remove(&key) {
-                Some(mut m) => m.shutdown(),
-                None => Ok(()),
+                Some(mut m) => m.stop(),
+                None => {}
             };
         }
 

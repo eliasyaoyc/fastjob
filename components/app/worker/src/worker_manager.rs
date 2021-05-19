@@ -7,6 +7,7 @@ use fastjob_proto::fastjob::{
     WorkerManagerConfig, WorkerManagerScope, WorkerManagerScope::ServerSide,
 };
 use std::collections::HashMap;
+use fastjob_components_utils::component::Component;
 
 // #[derive(Debug, Clone, PartialEq, Eq)]
 // pub enum WorkerManagerScope {
@@ -36,15 +37,22 @@ pub struct WorkerManager {
     tasks: HashMap<u64, Task>,
 }
 
-impl WorkerManager {
-    pub fn builder(config: &WorkerManagerConfig) -> Self {
+pub struct WorkerManagerBuilder {
+    id: u64,
+    status: WorkerManagerStatus,
+    config: WorkerManagerConfig,
+    scope: WorkerManagerScope,
+    workers: Vec<Worker>,
+}
+
+impl WorkerManagerBuilder {
+    pub fn builder(config: WorkerManagerConfig) -> Self {
         Self {
             id: 0,
             status: WorkerManagerStatus::Ready,
-            config: config.clone(),
+            config,
             scope: WorkerManagerScope::EMPTY,
             workers: vec![],
-            tasks: HashMap::new(),
         }
     }
 
@@ -58,19 +66,34 @@ impl WorkerManager {
         self
     }
 
-    pub fn build(self) -> Self {
+    pub fn build(self) -> WorkerManager {
         // init worker pool.
-        self
+        WorkerManager {
+            id: self.id,
+            status: self.status,
+            config: self.config,
+            scope: self.scope,
+            workers: self.workers,
+            tasks: Default::default(),
+        }
+    }
+}
+
+impl Component for WorkerManager {
+    fn prepare(&self) {
+        todo!()
     }
 
-    pub fn run(&mut self) -> Result<(), Error> {
-        Ok(())
+    fn start(&self) {
+        todo!()
     }
 
-    pub fn shutdown(&mut self) -> Result<(), Error> {
-        Ok(())
+    fn stop(&self) {
+        todo!()
     }
+}
 
+impl WorkerManager {
     pub fn register_task(&mut self, task: Task) -> Result<(), Error> {
         if !self.tasks.contains_key(&task.task_id.unwrap()) {
             self.tasks.insert(task.task_id.unwrap().clone(), task);

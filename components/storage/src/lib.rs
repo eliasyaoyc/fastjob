@@ -8,6 +8,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
+use fastjob_components_utils::component::Component;
 
 pub mod model;
 mod rbatis_test;
@@ -40,35 +41,33 @@ impl Default for StorageConfig {
 }
 
 pub trait Storage {
-    fn prepare(&self);
-
     fn save<T>(&self, t: &T) -> Result<(), Error>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn save_batch<T>(&self, t: &[T]) -> Result<(), Error>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn delete<T>(&self, id: &T::IdType) -> Result<u64, Error>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn delete_batch<T>(&self, ids: &[T::IdType]) -> Result<(), Error>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn fetch<T>(&self, w: &Wrapper) -> Result<T, Error>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn fetch_page<T>(&self, w: &Wrapper, page_no: u64, page_size: u64) -> Result<Page<T>, Error>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn update<T>(&self, models: &mut [T]) -> Result<(), Error>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 }
 
 pub struct MysqlStorage {
@@ -93,7 +92,7 @@ impl MysqlStorage {
     }
 }
 
-impl Storage for MysqlStorage {
+impl Component for MysqlStorage {
     fn prepare(&self) {
         rbatis::core::runtime::task::block_on(async {
             // rb.link("mysql://root:yaoyichen52@localhost:3306/neptune")
@@ -113,9 +112,19 @@ impl Storage for MysqlStorage {
         });
     }
 
+    fn start(&self) {
+        todo!()
+    }
+
+    fn stop(&self) {
+        todo!()
+    }
+}
+
+impl Storage for MysqlStorage {
     fn save<T>(&self, model: &T) -> Result<(), Error>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -127,8 +136,8 @@ impl Storage for MysqlStorage {
     }
 
     fn save_batch<T>(&self, model: &[T]) -> Result<(), Error>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -140,8 +149,8 @@ impl Storage for MysqlStorage {
     }
 
     fn delete<T>(&self, id: &T::IdType) -> Result<u64, Error>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -153,8 +162,8 @@ impl Storage for MysqlStorage {
     }
 
     fn delete_batch<T>(&self, ids: &[<T as CRUDTable>::IdType]) -> Result<(), Error>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -166,8 +175,8 @@ impl Storage for MysqlStorage {
     }
 
     fn fetch<T>(&self, w: &Wrapper) -> Result<T, Error>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -179,8 +188,8 @@ impl Storage for MysqlStorage {
     }
 
     fn fetch_page<T>(&self, w: &Wrapper, page_no: u64, page_size: u64) -> Result<Page<T>, Error>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -193,8 +202,8 @@ impl Storage for MysqlStorage {
     }
 
     fn update<T>(&self, modes: &mut [T]) -> Result<(), Error>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -233,6 +242,7 @@ mod tests {
     use rbatis::crud::CRUDTable;
     use serde::Deserialize;
     use serde::Serialize;
+    use fastjob_components_utils::component::Component;
 
     #[derive(Serialize, Deserialize, Clone, Debug)]
     struct BizActivity {

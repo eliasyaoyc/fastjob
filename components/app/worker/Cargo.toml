@@ -15,3 +15,5 @@ fastjob-components-resouce-constraints = { path = "../../resouce-constraints" }
 fastjob-components-error = { path = "../../error" }
 fastjob-components-storage = { path = "../../storage" }
 fastjob-proto = { git = "https://github.com/eliasyaoyc/fastjob-proto" }
+fastjob-components-log = { path = "../../log" }
+fastjob-components-utils = { path = "../../utils" }
