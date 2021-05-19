@@ -120,6 +120,8 @@ impl Server {
         // 1. setup log component.
         initial_logger(&self.config);
 
+        log_info();
+
         // Build grpc server and bind to address.
         let sb = self.builder_or_server.take().unwrap().left().unwrap();
         let server = sb.build()?;
@@ -154,4 +156,8 @@ impl Server {
     fn backend_shutdown(&self) -> Result<(), Error> {
         Ok(())
     }
+}
+
+fn log_info(){
+    info!("Welcome to FastJob");
 }

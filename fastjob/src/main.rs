@@ -12,6 +12,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use structopt::StructOpt;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
+use std::time::Duration;
 
 const EX_USAGE: i32 = 64;
 
@@ -101,10 +102,10 @@ pub fn overwrite_config_with_cmd_args(opt: Opt) -> Result<Config, Error> {
             log_file: "".to_string(),
             log_format: LogFormat::Text,
             slow_log_file: "".to_string(),
-            slow_log_threshold: Default::default(),
-            log_rotation_timespan: Default::default(),
+            slow_log_threshold: Duration::from_secs(1),
+            log_rotation_timespan: Duration::from_secs(86400),
             storage_config: config,
-            log_rotation_size: 0,
+            log_rotation_size: 300,
         },
         worker_manager: WorkerManagerConfig::default(),
     })

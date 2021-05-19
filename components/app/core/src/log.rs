@@ -38,14 +38,13 @@ pub fn initial_logger(config: &ServiceConfig) {
             config.log_rotation_timespan,
             config.log_rotation_size,
             rename_by_timestamp,
-        )
-            .unwrap_or_else(|e| {
-                fatal!(
+        ).unwrap_or_else(|e| {
+            fatal!(
                 "failed to initialize log with file {}: {}",
                 config.log_file,
                 e
             );
-            });
+        });
 
         let slow_log_writer = if config.slow_log_file.is_empty() {
             None
