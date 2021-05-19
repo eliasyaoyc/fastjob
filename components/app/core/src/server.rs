@@ -23,6 +23,8 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 use fastjob_components_utils::component::Component;
 
+const GRPC_SERVER: &str = "GRPC-SERVER";
+
 #[derive(Clone, Debug)]
 pub struct ServiceConfig {
     pub addr: String,
@@ -56,10 +58,11 @@ impl Server {
 
         let health_service = HealthService::default();
 
-        let env = Arc::new(EnvBuilder::new().name_prefix("GRPC-SERVER").build());
+        let env = Arc::new(EnvBuilder::new().name_prefix(GRPC_SERVER).build());
         let channel_args = ChannelBuilder::new(Arc::clone(&env)).build_args();
 
-        let fastjob_service = FastJobService::new(config.storage_config.clone());
+        // Constructor FastJob service.
+        let fastjob_service = FastJobService::new();
         fastjob_service.prepare();
 
         let builder = {
@@ -71,19 +74,28 @@ impl Server {
             Either::Left(sb)
         };
 
-        let storage = StorageBuilder::builder().config(config.storage_config.clone()).build();
+        // Constructor Storage.
+        let storage = StorageBuilder::builder()
+            .config(config.storage_config.clone())
+            .build();
 
+        // Constructor MetaManager.
         let meta_mgr = MetaManager::new();
+
+        // Constructor SchedulerManager.
         let scheduler_mgr = SchedulerManger::new();
-        let components: Vec<Box<dyn Component>> = vec![Box::new(storage), Box::new(meta_mgr), Box::new(scheduler_mgr)];
+
+
+        let components: Vec<Box<dyn Component>> = vec![
+            Box::new(storage),
+            Box::new(meta_mgr),
+            Box::new(scheduler_mgr)];
+
         let serve = Self {
             id,
             addr,
             config: config.clone(),
             builder_or_server: Some(builder),
-            // meta_mgr: MetaManager::new(),
-            // sched_mgr: SchedulerManger::new(),
-            // work_mgrs: vec![],
             health_service,
             components,
         };
@@ -95,6 +107,7 @@ impl Server {
                 std::process::exit(1);
             }
         };
+
         serve
     }
 
@@ -103,6 +116,12 @@ impl Server {
     /// 2. broadcast information about the current node to all `WorkerManger.`
     /// 3. try to stealing task from another node in cluster.
     fn pre_start(&self) -> Result<(), Error> {
+        // Start all inner components.
+        if !self.components.is_empty() {
+            for elem in self.components.iter() {
+                elem.prepare();
+            }
+        }
         Ok(())
     }
 
