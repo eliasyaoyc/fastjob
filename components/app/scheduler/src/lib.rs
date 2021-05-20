@@ -8,6 +8,7 @@ use fastjob_components_utils::component::Component;
 use crate::algo::Algorithm;
 
 mod algo;
+mod error;
 
 struct SchedulerInner {}
 
