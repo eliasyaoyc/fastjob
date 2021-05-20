@@ -1,4 +1,4 @@
-use crate::Scheduler;
+use crate::{Executor, Scheduler};
 use std::collections::hash_map::HashMap;
 use std::fmt::{Debug, Formatter};
 
@@ -58,7 +58,7 @@ impl PrioritySchedulerProvider {
     }
 }
 
-impl Scheduler for PrioritySchedulerProvider {
+impl Executor for PrioritySchedulerProvider {
     fn get_algorithm(&self, name: &str) {
         self.strategies.get(name);
     }

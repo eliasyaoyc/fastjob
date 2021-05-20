@@ -1,13 +1,21 @@
+//! Worker Manager only stores tasks and is not going to scheduling.
+//! If worker manager checks itself is free, it will start the steal thread
+//! that steals the task from another server in FastJob Cluster. However,
+//! if don't have enough space that will reject task request and respond a full error message.
+//! so client will retry this request that send to another server util success unless achieved
+//! the maximum retry numbers and send has failed.
 use crate::Worker;
-use fastjob_components_error::Error;
-// use crate::worker_manager::;
+use crossbeam::atomic::AtomicCell;
 use crossbeam::channel::Receiver;
+use fastjob_components_error::Error;
 use fastjob_components_storage::model::task::Task;
+use fastjob_components_utils::component::{Component, ComponentStatus};
 use fastjob_proto::fastjob::{
     WorkerManagerConfig, WorkerManagerScope, WorkerManagerScope::ServerSide,
 };
 use std::collections::HashMap;
-use fastjob_components_utils::component::Component;
+use std::fmt::{Debug, Display, Formatter};
+use std::sync::atomic::Ordering::SeqCst;
 
 // #[derive(Debug, Clone, PartialEq, Eq)]
 // pub enum WorkerManagerScope {
@@ -18,28 +26,45 @@ use fastjob_components_utils::component::Component;
 //     EMPTY,
 // }
 
-#[derive(Clone, Debug)]
-pub enum WorkerManagerStatus {
-    Ready,
-    Starting,
-}
+// #[derive(Clone, Debug)]
+// pub enum WorkerManagerStatus {
+//     Initialized,
+//     Ready,
+//     Started,
+//     Terminating,
+//     Shutdown,
+// }
 
 // #[derive(Clone, Debug)]
 // pub struct WorkerManagerConfig {}
 
-#[derive(Clone, Debug)]
 pub struct WorkerManager {
     id: u64,
-    status: WorkerManagerStatus,
+    status: AtomicCell<ComponentStatus>,
     config: WorkerManagerConfig,
     scope: WorkerManagerScope,
+
+    wait_queue: HashMap<u64, Task>,
+    // todo: instead of yatp scheduler pool
     workers: Vec<Worker>,
-    tasks: HashMap<u64, Task>,
+    // execute_queue:
+}
+
+impl Clone for WorkerManager {
+    fn clone(&self) -> Self {
+        todo!()
+    }
+}
+
+impl Debug for WorkerManager {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
 }
 
 pub struct WorkerManagerBuilder {
     id: u64,
-    status: WorkerManagerStatus,
+    status: AtomicCell<ComponentStatus>,
     config: WorkerManagerConfig,
     scope: WorkerManagerScope,
     workers: Vec<Worker>,
@@ -49,7 +74,7 @@ impl WorkerManagerBuilder {
     pub fn builder(config: WorkerManagerConfig) -> Self {
         Self {
             id: 0,
-            status: WorkerManagerStatus::Ready,
+            status: AtomicCell::new(ComponentStatus::Initialized),
             config,
             scope: WorkerManagerScope::EMPTY,
             workers: vec![],
@@ -67,43 +92,61 @@ impl WorkerManagerBuilder {
     }
 
     pub fn build(self) -> WorkerManager {
-        // init worker pool.
         WorkerManager {
             id: self.id,
             status: self.status,
             config: self.config,
             scope: self.scope,
             workers: self.workers,
-            tasks: Default::default(),
+            wait_queue: Default::default(),
         }
     }
 }
 
 impl Component for WorkerManager {
-    fn prepare(&self) {
-        todo!()
+    fn prepare(&mut self) {
+        assert_eq!(self.status.load(), ComponentStatus::Initialized);
+
+        // 1. Prepare yatp schedule pool.
+
+        // 2. Prepare checker thread.
+        self.status.store(ComponentStatus::Ready);
     }
 
-    fn start(&self) {
-        todo!()
+    fn start(&mut self) {
+        assert_eq!(self.status.load(), ComponentStatus::Ready);
+
+        // 1. Start yatp schedule pool
+
+        // 2. Start checker thread that will check workloads and server itself whether have task,
+        //    if not or less than the minimum threshold, it will steal from another server.
+
+        self.status.store(ComponentStatus::Starting);
+        // code.
+
+        self.status.store(ComponentStatus::Running);
     }
 
-    fn stop(&self) {
-        todo!()
+    fn stop(&mut self) {
+        assert_eq!(self.status.load(), ComponentStatus::Running);
+        self.status.store(ComponentStatus::Terminating);
+        // code
+
+        self.status.store(ComponentStatus::Shutdown);
     }
 }
 
 impl WorkerManager {
     pub fn register_task(&mut self, task: Task) -> Result<(), Error> {
-        if !self.tasks.contains_key(&task.task_id.unwrap()) {
-            self.tasks.insert(task.task_id.unwrap().clone(), task);
+        if !self.wait_queue.contains_key(&task.task_id.unwrap()) {
+            self.wait_queue.insert(task.task_id.unwrap().clone(), task);
         }
         Ok(())
     }
 
     pub fn unregister_task(&mut self, task_id: &u64) -> Result<(), Error> {
-        if self.tasks.contains_key(task_id) {
-            self.tasks.remove(task_id);
+        if self.wait_queue.contains_key(task_id) {
+            self.wait_queue.remove(task_id);
         }
         Ok(())
     }

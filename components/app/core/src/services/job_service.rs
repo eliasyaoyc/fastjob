@@ -1,16 +1,18 @@
+use fastjob_components_utils::component::Component;
 use fastjob_components_worker::worker_manager::{WorkerManager, WorkerManagerBuilder};
 use fastjob_proto::fastjob::*;
 use fastjob_proto::fastjob_grpc::FastJob;
 use futures::prelude::*;
 use grpcio::{RpcContext, UnarySink};
 use std::collections::HashMap;
-use fastjob_components_utils::component::Component;
 
 const GRPC_RESPONSE_CODE: u64 = 200;
 
 /// Service handles the RPC messages for the `FastJob` service.
 #[derive(Clone)]
 pub struct Service {
+    // Manager all tasks that belongs itself. Note that this manager collection includes all the
+    // workload  and server itself that are registered with the server,so the collection's key is server id
     work_mgrs: HashMap<u64, WorkerManager>,
 }
 
@@ -37,8 +39,8 @@ impl FastJob for Service {
             req.get_workerManagerId()
         );
 
-        dbg!(
-            "FastJob recv register worker manager request, id: {}, addr: {}",
+        debug!(
+            "recv register worker manager request, id: {}, addr: {}",
             req.get_workerManagerId(),
             req.get_localAddr()
         );
@@ -48,12 +50,15 @@ impl FastJob for Service {
         let key = req.get_workerManagerId();
 
         if !self.work_mgrs.contains_key(&key) {
-            let mut worker_mgr = WorkerManagerBuilder::builder(req.get_workerManagerConfig().clone())
-                .id(req.get_workerManagerId())
-                .scope(req.get_workerManagerScope())
-                .build();
+            let mut worker_mgr =
+                WorkerManagerBuilder::builder(req.get_workerManagerConfig().clone())
+                    .id(req.get_workerManagerId())
+                    .scope(req.get_workerManagerScope())
+                    .build();
 
-            // start worker manager.
+            // Start worker manager.
+            // todo. `Result` needs to be added to determine whether the execution was successful.
+            worker_mgr.prepare();
             worker_mgr.start();
             self.work_mgrs.insert(key, worker_mgr);
         }
@@ -77,8 +82,8 @@ impl FastJob for Service {
             "Hello un_register_worker_manager {}",
             req.get_workerManagerId()
         );
-        dbg!(
-            "FastJob recv unregister worker manager request, id: {}, addr: {}",
+        debug!(
+            "recv unregister worker manager request, id: {}, addr: {}",
             req.get_workerManagerId(),
             req.get_localAddr()
         );
@@ -109,7 +114,7 @@ impl FastJob for Service {
         req: FetchWorkerManagersRequest,
         sink: UnarySink<FetchWorkerManagersResponse>,
     ) {
-        dbg!("FastJob recv fetch worker managers request");
+        debug!("recv fetch worker managers request");
         let mut resp = FetchWorkerManagersResponse::default();
         let msg = format!("{:#?}", self.work_mgrs);
         resp.set_message(msg);
@@ -128,7 +133,7 @@ impl FastJob for Service {
         sink: UnarySink<RegisterTaskResponse>,
     ) {
         let msg = format!("Hello register_task {}", req.get_taskId());
-        dbg!("FastJob recv register task request");
+        debug!("recv register task request");
         let mut resp = RegisterTaskResponse::default();
 
         let task_manager_id = req.get_taskManagerId();
@@ -154,6 +159,7 @@ impl FastJob for Service {
         sink: UnarySink<UnRegisterTaskResponse>,
     ) {
         let msg = format!("Hello un_register_task {}", req.get_taskId());
+        debug!("recv unregister task request");
         let mut resp = UnRegisterTaskResponse::default();
         resp.set_message(msg);
         let f = sink
@@ -186,6 +192,7 @@ impl FastJob for Service {
         sink: UnarySink<DirectMailMetadataResponse>,
     ) {
         let msg = format!("Hello direct_mail_metadata {}", req.get_nodeId());
+        debug!("recv direct mail metadata request");
         let mut resp = DirectMailMetadataResponse::default();
         resp.set_message(msg);
         let f = sink

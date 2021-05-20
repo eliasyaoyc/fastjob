@@ -3,8 +3,9 @@ use crate::services::FastJobService;
 use crate::{gossip::GossipConfig, meta::MetaManager, ListenAddr};
 use fastjob_components_error::Error;
 use fastjob_components_log::LogFormat;
-use fastjob_components_scheduler::{Scheduler, SchedulerManger};
-use fastjob_components_storage::{StorageConfig, StorageBuilder};
+use fastjob_components_scheduler::Scheduler;
+use fastjob_components_storage::{StorageBuilder, StorageConfig};
+use fastjob_components_utils::component::Component;
 use fastjob_components_utils::Either;
 use fastjob_components_worker::worker_manager::WorkerManager;
 use fastjob_proto::fastjob_grpc::create_fast_job;
@@ -21,7 +22,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use fastjob_components_utils::component::Component;
 
 const GRPC_SERVER: &str = "GRPC-SERVER";
 
@@ -82,16 +82,13 @@ impl Server {
         // Constructor MetaManager.
         let meta_mgr = MetaManager::new();
 
-        // Constructor SchedulerManager.
-        let scheduler_mgr = SchedulerManger::new();
+        // Constructor Scheduler.
+        let scheduler = Scheduler::new();
 
+        let components: Vec<Box<dyn Component>> =
+            vec![Box::new(storage), Box::new(meta_mgr), Box::new(scheduler)];
 
-        let components: Vec<Box<dyn Component>> = vec![
-            Box::new(storage),
-            Box::new(meta_mgr),
-            Box::new(scheduler_mgr)];
-
-        let serve = Self {
+        let mut serve = Self {
             id,
             addr,
             config: config.clone(),
@@ -115,10 +112,10 @@ impl Server {
     /// 1. load metadata from disk if exists.
     /// 2. broadcast information about the current node to all `WorkerManger.`
     /// 3. try to stealing task from another node in cluster.
-    fn pre_start(&self) -> Result<(), Error> {
+    fn pre_start(&mut self) -> Result<(), Error> {
         // Start all inner components.
         if !self.components.is_empty() {
-            for elem in self.components.iter() {
+            for elem in self.components.iter_mut() {
                 elem.prepare();
             }
         }

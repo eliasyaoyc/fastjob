@@ -11,15 +11,15 @@ impl MetaManager {
 }
 
 impl Component for MetaManager {
-    fn prepare(&self) {
+    fn prepare(&mut self) {
         todo!()
     }
 
-    fn start(&self) {
+    fn start(&mut self) {
         todo!()
     }
 
-    fn stop(&self) {
+    fn stop(&mut self) {
         todo!()
     }
 }

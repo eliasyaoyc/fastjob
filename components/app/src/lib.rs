@@ -36,10 +36,11 @@ impl Config {
             &self.server,
         );
 
-        let worker_manager = worker_manager::WorkerManagerBuilder::builder(self.worker_manager.clone())
-            .id(id_generator::generator_id(GeneratorTyp::WorkerManager))
-            .scope(ServerSide)
-            .build();
+        let worker_manager =
+            worker_manager::WorkerManagerBuilder::builder(self.worker_manager.clone())
+                .id(id_generator::generator_id(GeneratorTyp::WorkerManager))
+                .scope(ServerSide)
+                .build();
 
         Ok(App {
             server,

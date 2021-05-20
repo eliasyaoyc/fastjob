@@ -9,10 +9,10 @@ use fastjob_components_utils::signal;
 use fastjob_proto::fastjob::WorkerManagerConfig;
 use std::io::Error;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::time::Duration;
 use structopt::StructOpt;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
-use std::time::Duration;
 
 const EX_USAGE: i32 = 64;
 

@@ -68,9 +68,9 @@ pub fn init_log<D>(
     mut disabled_targets: Vec<String>,
     slow_threshold: u64,
 ) -> Result<(), SetLoggerError>
-    where
-        D: Drain + Send + 'static,
-        <D as Drain>::Err: std::fmt::Display,
+where
+    D: Drain + Send + 'static,
+    <D as Drain>::Err: std::fmt::Display,
 {
     // Set the initial log level used by the Drains
     LOG_LEVEL.store(level.as_usize(), Ordering::Relaxed);
@@ -139,8 +139,8 @@ pub fn file_writer<N>(
     rotation_size: u64,
     rename: N,
 ) -> io::Result<BufWriter<RotatingFileLogger>>
-    where
-        N: 'static + Send + Fn(&Path) -> io::Result<PathBuf>,
+where
+    N: 'static + Send + Fn(&Path) -> io::Result<PathBuf>,
 {
     let logger = BufWriter::new(
         RotatingFileLoggerBuilder::builder(rename)
@@ -159,8 +159,8 @@ pub fn term_writer() -> io::Stderr {
 
 /// Formats output logs to "FastJob Log Format".
 pub fn text_format<W>(io: W) -> FastJobFormat<PlainDecorator<W>>
-    where
-        W: io::Write,
+where
+    W: io::Write,
 {
     let decorator = PlainDecorator::new(io);
     FastJobFormat::new(decorator)
@@ -168,8 +168,8 @@ pub fn text_format<W>(io: W) -> FastJobFormat<PlainDecorator<W>>
 
 /// Formats output logs to JSON format.
 pub fn json_format<W>(io: W) -> slog_json::Json<W>
-    where
-        W: io::Write,
+where
+    W: io::Write,
 {
     slog_json::Json::new(io)
         .set_newlines(true)
@@ -257,15 +257,15 @@ pub fn set_log_level(new_level: Level) {
 }
 
 pub struct FastJobFormat<D>
-    where
-        D: Decorator,
+where
+    D: Decorator,
 {
     decorator: D,
 }
 
 impl<D> FastJobFormat<D>
-    where
-        D: Decorator,
+where
+    D: Decorator,
 {
     pub fn new(decorator: D) -> Self {
         Self { decorator }
@@ -273,8 +273,8 @@ impl<D> FastJobFormat<D>
 }
 
 impl<D> Drain for FastJobFormat<D>
-    where
-        D: Decorator,
+where
+    D: Decorator,
 {
     type Ok = ();
     type Err = io::Error;
@@ -300,9 +300,9 @@ impl<D> Drain for FastJobFormat<D>
 struct LogAndFuse<D>(D);
 
 impl<D> Drain for LogAndFuse<D>
-    where
-        D: Drain,
-        <D as Drain>::Err: std::fmt::Display,
+where
+    D: Drain,
+    <D as Drain>::Err: std::fmt::Display,
 {
     type Ok = ();
     type Err = slog::Never;
@@ -331,8 +331,8 @@ struct SlowLogFilter<D> {
 }
 
 impl<D> Drain for SlowLogFilter<D>
-    where
-        D: Drain<Ok=(), Err=slog::Never>,
+where
+    D: Drain<Ok = (), Err = slog::Never>,
 {
     type Ok = ();
     type Err = slog::Never;
@@ -397,9 +397,9 @@ impl<N: Drain, S: Drain> LogDispatcher<N, S> {
 }
 
 impl<N, S> Drain for LogDispatcher<N, S>
-    where
-        N: Drain<Ok=(), Err=io::Error>,
-        S: Drain<Ok=(), Err=io::Error>,
+where
+    N: Drain<Ok = (), Err = io::Error>,
+    S: Drain<Ok = (), Err = io::Error>,
 {
     type Ok = ();
     type Err = io::Error;

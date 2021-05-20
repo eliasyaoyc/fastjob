@@ -9,29 +9,29 @@ mod priority_scheduler;
 // }
 
 #[derive(Clone)]
-pub struct SchedulerManger {}
+pub struct Scheduler {}
 
-impl SchedulerManger {
+impl Scheduler {
     pub fn new() -> Self {
         Self {}
     }
 }
 
-impl Component for SchedulerManger {
-    fn prepare(&self) {
+impl Component for Scheduler {
+    fn prepare(&mut self) {
         todo!()
     }
 
-    fn start(&self) {
+    fn start(&mut self) {
         todo!()
     }
 
-    fn stop(&self) {
+    fn stop(&mut self) {
         todo!()
     }
 }
 
-pub trait Scheduler {
+pub trait Executor {
     fn get_algorithm(&self, name: &str);
     fn register_algorithm(&mut self, name: &str);
     fn unregister_algorithm(&mut self, name: &str);
