@@ -1,4 +1,5 @@
-use crate::{Executor, Scheduler};
+use crate::Scheduler;
+use crate::algo::Algorithm;
 
 #[derive(Debug, Clone)]
 pub struct PrimaryScheduler {}
@@ -13,7 +14,7 @@ impl PrimaryScheduler {
     }
 }
 
-impl Executor for PrimaryScheduler {
+impl Algorithm for PrimaryScheduler {
     fn get_algorithm(&self, name: &str) {
         todo!()
     }

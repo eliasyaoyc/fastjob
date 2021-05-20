@@ -1,23 +1,41 @@
+//! Scheduler which schedules the execution of `Task`. It receives commands from `WorkManager`.
+//!
+//! Scheduler runs in a single-thread event loop, but task executions are delegated to a pool of
+//! worker thread.
+//!
+//! Scheduler keeps track of all the running task status and reports to `WorkerManager`.
 use fastjob_components_utils::component::Component;
+use crate::algo::Algorithm;
 
-mod primary_scheduler;
-mod priority_scheduler;
+mod algo;
 
-// pub enum Scheduler {
-//     PrimaryScheduler,
-//     PriorityScheduler,
-// }
+struct SchedulerInner {}
 
-#[derive(Clone)]
-pub struct Scheduler {}
-
-impl Scheduler {
-    pub fn new() -> Self {
+impl SchedulerInner {
+    fn new() -> Self {
         Self {}
     }
 }
 
-impl Component for Scheduler {
+#[derive(Clone)]
+pub struct Scheduler<A: Algorithm> {
+    algo: Option<A>,
+    inner: SchedulerInner,
+}
+
+impl<A: Algorithm> Scheduler<A> {
+    /// Creates a scheduler.
+    pub fn new(
+        algo: A,
+    ) -> Self {
+        Self {
+            algo,
+            inner: SchedulerInner::new(),
+        }
+    }
+}
+
+impl<A: Algorithm> Component for Scheduler<A> {
     fn prepare(&mut self) {
         todo!()
     }
@@ -29,12 +47,6 @@ impl Component for Scheduler {
     fn stop(&mut self) {
         todo!()
     }
-}
-
-pub trait Executor {
-    fn get_algorithm(&self, name: &str);
-    fn register_algorithm(&mut self, name: &str);
-    fn unregister_algorithm(&mut self, name: &str);
 }
 
 #[cfg(test)]
