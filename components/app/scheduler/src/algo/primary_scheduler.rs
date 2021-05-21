@@ -1,4 +1,3 @@
-use crate::Scheduler;
 use crate::algo::Algorithm;
 
 #[derive(Debug, Clone)]

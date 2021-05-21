@@ -3,7 +3,7 @@ use crate::services::FastJobService;
 use crate::{gossip::GossipConfig, meta::MetaManager, ListenAddr};
 use fastjob_components_error::Error;
 use fastjob_components_log::LogFormat;
-use fastjob_components_scheduler::Scheduler;
+use fastjob_components_scheduler::Dispatcher;
 use fastjob_components_storage::{StorageBuilder, StorageConfig};
 use fastjob_components_utils::component::Component;
 use fastjob_components_utils::Either;
@@ -83,10 +83,10 @@ impl Server {
         let meta_mgr = MetaManager::new();
 
         // Constructor Scheduler.
-        let scheduler = Scheduler::new();
+        let dispatcher = Dispatcher::new();
 
         let components: Vec<Box<dyn Component>> =
-            vec![Box::new(storage), Box::new(meta_mgr), Box::new(scheduler)];
+            vec![Box::new(storage), Box::new(meta_mgr), Box::new(dispatcher)];
 
         let mut serve = Self {
             id,

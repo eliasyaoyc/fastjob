@@ -9,3 +9,5 @@ edition = "2018"
 [dependencies]
 fastjob-components-utils = { path = "../../utils" }
 snafu = "0.6.10"
+cron = "0.9.0"
+crossbeam-utils = "0.8.1"

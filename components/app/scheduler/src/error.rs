@@ -14,4 +14,12 @@ enum SchedError {
         source: std::io::Error,
         path: std::path::PathBuf,
     },
+
+    #[snafu(display("Not match scheduler."))]
+    NotMatch {},
+
+    #[snafu(display("scheduler {} is too busy.",, sched_id))]
+    SchedTooBusy {
+        sched_id: u64,
+    },
 }

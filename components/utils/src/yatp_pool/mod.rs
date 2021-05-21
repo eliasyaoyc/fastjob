@@ -1,4 +1,4 @@
-mod future_pool;
+pub mod future_pool;
 
 use crate::time::{Duration, Instant};
 use future_pool::FuturePool;

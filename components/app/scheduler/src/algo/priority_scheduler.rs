@@ -1,4 +1,3 @@
-use crate::Scheduler;
 use crate::algo::Algorithm;
 use std::collections::hash_map::HashMap;
 use std::fmt::{Debug, Formatter};

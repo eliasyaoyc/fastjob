@@ -1,42 +1,31 @@
-//! Scheduler which schedules the execution of `Task`. It receives commands from `WorkManager`.
+//! The dispatcher component is core component that responsible dispatch task to concrete scheduler.
 //!
-//! Scheduler runs in a single-thread event loop, but task executions are delegated to a pool of
-//! worker thread.
+//! Below is a flow diagram for a task.
+//! Task -> FastJobServer
+//!                       -> WorkerManager
+//!                                         -> Dispatcher  -> Scheduler
 //!
-//! Scheduler keeps track of all the running task status and reports to `WorkerManager`.
+//! Dispatcher runs a single-thread event loop, but task execution are delegated to Scheduler.
+use std::sync::Arc;
 use fastjob_components_utils::component::Component;
-use crate::algo::Algorithm;
+use crate::scheduler::Scheduler;
 
 mod algo;
 mod error;
+mod scheduler;
+mod sched_pool;
 
-struct SchedulerInner {}
+pub struct Dispatcher {
+    scheduler: Arc<Scheduler>,
+}
 
-impl SchedulerInner {
-    fn new() -> Self {
-        Self {}
+impl Dispatcher {
+    pub fn new() -> Self {
+        let dispatcher = Self { scheduler: Arc::new(Scheduler::new()) };
     }
 }
 
-#[derive(Clone)]
-pub struct Scheduler<A: Algorithm> {
-    algo: Option<A>,
-    inner: SchedulerInner,
-}
-
-impl<A: Algorithm> Scheduler<A> {
-    /// Creates a scheduler.
-    pub fn new(
-        algo: A,
-    ) -> Self {
-        Self {
-            algo,
-            inner: SchedulerInner::new(),
-        }
-    }
-}
-
-impl<A: Algorithm> Component for Scheduler<A> {
+impl Component for Dispatcher {
     fn prepare(&mut self) {
         todo!()
     }
@@ -47,13 +36,5 @@ impl<A: Algorithm> Component for Scheduler<A> {
 
     fn stop(&mut self) {
         todo!()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
     }
 }
