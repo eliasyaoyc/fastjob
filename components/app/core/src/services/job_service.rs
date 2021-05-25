@@ -128,65 +128,6 @@ impl FastJob for Service {
         ctx.spawn(f)
     }
 
-    // fn register_task(
-    //     &mut self,
-    //     ctx: RpcContext,
-    //     req: RegisterTaskRequest,
-    //     sink: UnarySink<RegisterTaskResponse>,
-    // ) {
-    //     let msg = format!("Hello register_task {}", req.get_taskId());
-    //     debug!("recv register task request");
-    //     let mut resp = RegisterTaskResponse::default();
-    //
-    //     MaybeUninit::<>::uninit();
-    //     let task_manager_id = req.get_taskManagerId();
-    //     if let Some(mgr) = self.work_mgrs.get_mut(&task_manager_id) {
-    //         match mgr.get_status() {
-    //             ComponentStatus::Ready => {
-    //                 mgr.start();
-    //             }
-    //             ComponentStatus::Running => {
-    //             }
-    //             ComponentStatus::Starting => {
-    //                 // need to wait.
-    //
-    //             }
-    //             ComponentStatus::Initialized => {
-    //                 mgr.prepare();
-    //                 mgr.start()();
-    //             }
-    //             _ => {
-    //                 // return failure response.
-    //
-    //             }
-    //         }
-    //     }
-    //     resp.set_message(msg);
-    //     resp.set_code(GRPC_RESPONSE_CODE);
-    //     let f = sink
-    //         .success(resp)
-    //         .map_err(move |e| format!("failed to reply {:?}: {:?}", req, e))
-    //         .map(|_| ());
-    //     ctx.spawn(f)
-    // }
-    //
-    // fn un_register_task(
-    //     &mut self,
-    //     ctx: RpcContext,
-    //     req: UnRegisterTaskRequest,
-    //     sink: UnarySink<UnRegisterTaskResponse>,
-    // ) {
-    //     let msg = format!("Hello un_register_task {}", req.get_taskId());
-    //     debug!("recv unregister task request");
-    //     let mut resp = UnRegisterTaskResponse::default();
-    //     resp.set_message(msg);
-    //     let f = sink
-    //         .success(resp)
-    //         .map_err(move |e| format!("failed to reply {:?}: {:?}", req, e))
-    //         .map(|_| ());
-    //     ctx.spawn(f)
-    // }
-
     fn entropy_metadata(
         &mut self,
         ctx: RpcContext,

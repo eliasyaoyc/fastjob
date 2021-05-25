@@ -140,20 +140,6 @@ impl Component for WorkerManager {
 }
 
 impl WorkerManager {
-    // pub fn register_task(&mut self, task: Task) -> Result<(), Error> {
-    //     if !self.wait_queue.contains_key(&task.task_id.unwrap()) {
-    //         self.wait_queue.insert(task.task_id.unwrap().clone(), task);
-    //     }
-    //     Ok(())
-    // }
-    //
-    // pub fn unregister_task(&mut self, task_id: &u64) -> Result<(), Error> {
-    //     if self.wait_queue.contains_key(task_id) {
-    //         self.wait_queue.remove(task_id);
-    //     }
-    //     Ok(())
-    // }
-
     /// Manually perform a schedule.
     pub fn manual_sched(&mut self) -> Result<(), Error> {
         self.sched()
