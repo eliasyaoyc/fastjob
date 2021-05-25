@@ -110,6 +110,8 @@ impl Component for WorkerManager {
         // 1. Prepare yatp schedule pool.
 
         // 2. Prepare checker thread.
+
+        // 3. Prepare fetch job thread.
         self.status.store(ComponentStatus::Ready);
     }
 
@@ -121,6 +123,7 @@ impl Component for WorkerManager {
         // 2. Start checker thread that will check workloads and server itself whether have task,
         //    if not or less than the minimum threshold, it will steal from another server.
 
+        // 3. Start fetch job thread.
         self.status.store(ComponentStatus::Starting);
         // code.
 
@@ -137,19 +140,19 @@ impl Component for WorkerManager {
 }
 
 impl WorkerManager {
-    pub fn register_task(&mut self, task: Task) -> Result<(), Error> {
-        if !self.wait_queue.contains_key(&task.task_id.unwrap()) {
-            self.wait_queue.insert(task.task_id.unwrap().clone(), task);
-        }
-        Ok(())
-    }
-
-    pub fn unregister_task(&mut self, task_id: &u64) -> Result<(), Error> {
-        if self.wait_queue.contains_key(task_id) {
-            self.wait_queue.remove(task_id);
-        }
-        Ok(())
-    }
+    // pub fn register_task(&mut self, task: Task) -> Result<(), Error> {
+    //     if !self.wait_queue.contains_key(&task.task_id.unwrap()) {
+    //         self.wait_queue.insert(task.task_id.unwrap().clone(), task);
+    //     }
+    //     Ok(())
+    // }
+    //
+    // pub fn unregister_task(&mut self, task_id: &u64) -> Result<(), Error> {
+    //     if self.wait_queue.contains_key(task_id) {
+    //         self.wait_queue.remove(task_id);
+    //     }
+    //     Ok(())
+    // }
 
     /// Manually perform a schedule.
     pub fn manual_sched(&mut self) -> Result<(), Error> {
@@ -174,5 +177,11 @@ impl WorkerManager {
     #[inline]
     fn is_server_side(&self) -> bool {
         self.scope == ServerSide
+    }
+
+    /// Returns the status of `WorkerManager`.
+    #[inline]
+    pub fn get_status(&self) -> ComponentStatus {
+        self.status.load()
     }
 }

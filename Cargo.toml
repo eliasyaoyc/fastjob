@@ -13,9 +13,10 @@ members = [
     "components/metrics",
     "components/tracing",
     "components/utils",
-    "components/resouce-constraints",
     "components/storage",
     "components/log",
+    "components/container",
+    "components/workflow",
 ]
 
 [profile.dev]
