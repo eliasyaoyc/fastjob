@@ -4,6 +4,8 @@ pub mod signal;
 pub mod signal_handler;
 pub mod time;
 pub mod yatp_pool;
+pub mod plugin;
+pub mod timing_wheel;
 
 /// Represents a value of one of two possible types(a more generic Result.)
 #[derive(Debug, Clone)]
@@ -48,6 +50,7 @@ impl<L, R> Either<L, R> {
 
 use snafu::{ResultExt, Snafu};
 use std::{fs, io, path::PathBuf};
+
 #[derive(Debug, Snafu)]
 enum Error {
     #[snafu(display("Unable to read configuration from {}: {}", path.display(), source))]

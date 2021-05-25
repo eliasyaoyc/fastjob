@@ -38,7 +38,7 @@ impl FastJob for Service {
     ) {
         let msg = format!(
             "Hello register_worker_manager {}",
-            req.get_workerManagerId()
+            req.get_workerManagerId()0-
         );
 
         debug!(

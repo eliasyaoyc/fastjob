@@ -12,6 +12,7 @@ mod log;
 mod meta;
 pub mod server;
 mod services;
+mod plugin_handler;
 
 #[derive(Clone)]
 pub struct ListenAddrs(pub Vec<ListenAddr>);

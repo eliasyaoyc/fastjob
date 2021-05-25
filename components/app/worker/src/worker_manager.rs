@@ -6,7 +6,7 @@
 //! the maximum retry numbers and send has failed.
 use crate::Worker;
 use crossbeam::atomic::AtomicCell;
-use crossbeam::channel::Receiver;
+use crossbeam::channel::{Receiver, Sender};
 use fastjob_components_error::Error;
 use fastjob_components_storage::model::task::Task;
 use fastjob_components_utils::component::{Component, ComponentStatus};
@@ -16,6 +16,8 @@ use fastjob_proto::fastjob::{
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::atomic::Ordering::SeqCst;
+use crate::job_fetcher::JobFetcher;
+use fastjob_components_utils::timing_wheel::TimingWheel;
 
 // #[derive(Debug, Clone, PartialEq, Eq)]
 // pub enum WorkerManagerScope {
@@ -47,6 +49,8 @@ pub struct WorkerManager {
     wait_queue: HashMap<u64, Task>,
     // todo: instead of yatp scheduler pool
     workers: Vec<Worker>,
+    job_fetcher: JobFetcher,
+    timing_wheel: TimingWheel,
     // execute_queue:
 }
 
@@ -92,6 +96,7 @@ impl WorkerManagerBuilder {
     }
 
     pub fn build(self) -> WorkerManager {
+        let (tx, rx) = crossbeam::channel::unbounded();
         WorkerManager {
             id: self.id,
             status: self.status,
@@ -99,6 +104,8 @@ impl WorkerManagerBuilder {
             scope: self.scope,
             workers: self.workers,
             wait_queue: Default::default(),
+            job_fetcher: JobFetcher::new(tx),
+            timing_wheel: TimingWheel::new(rx),
         }
     }
 }
@@ -118,14 +125,23 @@ impl Component for WorkerManager {
     fn start(&mut self) {
         assert_eq!(self.status.load(), ComponentStatus::Ready);
 
+        // Change status.
+        self.status.store(ComponentStatus::Starting);
+
         // 1. Start yatp schedule pool
 
         // 2. Start checker thread that will check workloads and server itself whether have task,
         //    if not or less than the minimum threshold, it will steal from another server.
 
         // 3. Start fetch job thread.
-        self.status.store(ComponentStatus::Starting);
-        // code.
+        std::thread::spawn(|| {
+            self.job_fetcher.clone().fetch();
+        });
+
+        // 4. Pop task from timing wheel.
+        std::thread::spawn(|| {
+            self.timing_wheel.pop();
+        });
 
         self.status.store(ComponentStatus::Running);
     }

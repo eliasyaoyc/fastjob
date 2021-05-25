@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "fastjob",
-    "fastjob-admin",
+    "components/admin",
     "components/alarm",
     "components/app",
     "components/app/core",

@@ -1,6 +1,3 @@
-pub mod option;
-
-use crate::option::Opt;
 use fastjob_components_core::gossip::GossipConfig;
 use fastjob_components_core::server::Server;
 use fastjob_components_core::{gossip, server, ListenAddr};

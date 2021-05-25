@@ -280,7 +280,7 @@ mod tests {
             connect_timeout: 5,
             idle_timeout: 5,
         };
-        let storage = StorageBuilder::builder().config(config).build();
+        let mut storage = StorageBuilder::builder().config(config).build();
 
         let activity = BizActivity {
             id: Some("12312".to_string()),
