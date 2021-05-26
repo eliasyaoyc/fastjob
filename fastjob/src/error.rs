@@ -1,9 +1,9 @@
 use snafu::{ResultExt, Snafu};
 
-pub type Result<T, E = SchedError> = std::result::Result<T, E>;
+pub type Result<T, E = AppError> = std::result::Result<T, E>;
 
 #[derive(Debug, Snafu)]
-enum SchedError {
+enum AppError {
     #[snafu(display("Unable to read configuration from {}: {}", path.display(), source))]
     ReadConfiguration {
         source: std::io::Error,
@@ -13,13 +13,5 @@ enum SchedError {
     WriteResult {
         source: std::io::Error,
         path: std::path::PathBuf,
-    },
-
-    #[snafu(display("Not match scheduler."))]
-    NotMatch {},
-
-    #[snafu(display("scheduler {} is too busy.",, sched_id))]
-    SchedTooBusy {
-        sched_id: u64,
     },
 }

@@ -7,7 +7,6 @@
 use crate::Worker;
 use crossbeam::atomic::AtomicCell;
 use crossbeam::channel::{Receiver, Sender};
-use fastjob_components_error::Error;
 use fastjob_components_storage::model::task::Task;
 use fastjob_components_utils::component::{Component, ComponentStatus};
 use fastjob_proto::fastjob::{
@@ -156,6 +155,14 @@ impl Component for WorkerManager {
 }
 
 impl WorkerManager {
+    pub fn register_task(&mut self, task: Task) -> Result<(), Error> {
+        Ok(())
+    }
+
+    pub fn unregister_task(&mut self, task_id: &u64) -> Result<(), Error> {
+        Ok(())
+    }
+
     /// Manually perform a schedule.
     pub fn manual_sched(&mut self) -> Result<(), Error> {
         self.sched()

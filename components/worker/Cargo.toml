@@ -11,8 +11,7 @@ crossbeam = "0.8.0"
 tokio = { version = "1", features = ["rt", "time", "net"] }
 cron = "0.9.0"
 yatp = {git = "https://github.com/tikv/yatp", branch = "master"}
-fastjob-components-error = { path = "../../error" }
-fastjob-components-storage = { path = "../../storage" }
+fastjob-components-storage = { path = "../storage" }
 fastjob-proto = { git = "https://github.com/eliasyaoyc/fastjob-proto" }
-fastjob-components-log = { path = "../../log" }
-fastjob-components-utils = { path = "../../utils" }
+fastjob-components-log = { path = "../log" }
+fastjob-components-utils = { path = "../utils" }

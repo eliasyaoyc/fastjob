@@ -1,3 +1,16 @@
+mod rt;
+mod app;
+mod services;
+mod config;
+mod error;
+
+pub use error::Result;
+
+mod log;
+mod meta;
+pub mod server;
+mod plugin_handler;
+
 use ipnet::IpAdd;
 use std::fmt::Formatter;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -5,14 +18,6 @@ use std::net::{SocketAddr, ToSocketAddrs};
 #[macro_use]
 extern crate fastjob_components_log;
 
-mod config;
-mod error;
-pub mod gossip;
-mod log;
-mod meta;
-pub mod server;
-mod services;
-mod plugin_handler;
 
 #[derive(Clone)]
 pub struct ListenAddrs(pub Vec<ListenAddr>);

@@ -1,10 +1,9 @@
-use fastjob_components_error::Error;
 use snafu::{ResultExt, Snafu};
 
-type Result<T, E = Error> = std::result::Result<T, E>;
+pub type Result<T, E = SchedError> = std::result::Result<T, E>;
 
 #[derive(Debug, Snafu)]
-enum AppError {
+enum SchedError {
     #[snafu(display("Unable to read configuration from {}: {}", path.display(), source))]
     ReadConfiguration {
         source: std::io::Error,
@@ -14,5 +13,13 @@ enum AppError {
     WriteResult {
         source: std::io::Error,
         path: std::path::PathBuf,
+    },
+
+    #[snafu(display("Not match scheduler."))]
+    NotMatch {},
+
+    #[snafu(display("scheduler {} is too busy.", sched_id))]
+    SchedTooBusy {
+        sched_id: u64,
     },
 }

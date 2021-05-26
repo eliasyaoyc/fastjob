@@ -1,4 +1,3 @@
-use crate::config::ServerConfig;
 use crate::server::ServiceConfig;
 use chrono::Local;
 use fastjob_components_log::{

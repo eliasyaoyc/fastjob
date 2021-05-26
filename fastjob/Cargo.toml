@@ -11,6 +11,10 @@ default = ["multicore"]
 multicore = ["tokio/rt-multi-thread","num_cpus"]
 
 [dependencies]
+futures = "0.3.9"
+grpcio = "0.8.0"
+grpcio-health = "0.8.0"
+snafu = "0.6.10"
 structopt = "0.3"
 tokio = "1.5.0"
 tracing = "0.1.23"
@@ -19,8 +23,6 @@ toml = "0.5"
 num_cpus = { version = "1", optional = true }
 fastjob-proto = { git = "https://github.com/eliasyaoyc/fastjob-proto" }
 fastjob-components-log = {path = "../components/log"}
-fastjob-components-app = {path = "../components/app"}
 fastjob-components-utils = {path = "../components/utils"}
-fastjob-components-worker = { path = "../components/app/worker" }
-fastjob-components-core = { path = "../components/app/core" }
+fastjob-components-worker = { path = "../components/worker" }
 fastjob-components-storage = { path = "../components/storage" }

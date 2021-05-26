@@ -13,10 +13,10 @@ Scheduler is a core module in FastJob that supports multiple scheduling strategi
 Delayed、API , but we can ignore API because of it will directly startup through interface that client supports, so the
 remaining scheduling policies are divided into regular tasks and second-level tasks based on execution frequency.
 
-* **Regular tasks :** acquire tasks that ready to executed from database,and generate execution record insert into
+* **Regular tasks :** Acquire tasks that ready to executed from database,and generate execution record insert into
   database then push it to delayer timer.
-* **Second Level tasks :** server will not be scheduled and executed and will be directly lowered into the worker, so
-  worker will schedule and execute.**
+* **Second Level tasks :** Server will not be scheduled and executed and will be directly lowered into the worker, so
+  worker will schedule and execute.
 
 **How to conduct reliable scheduling?**
 > Scheduler can't acquire task due to network latency or other unknown questions, so how do we schedule reliably?
@@ -30,7 +30,7 @@ client lookup service through NACOS then completely connect. Through distribute-
 scheduling i.e. only be scheduled by one machine at a time, so it can't do high performance, so we need to use the
 lock-free mind designing it and support group isolation.
 
-**How are groups defined?**
+**How are group defined?**
 > Aimed at providing accurate scheduling for various departments and lines of business,so FastJob has the concept of AppName.
 > An AppName logically corresponds to a set of tasks for an application and physically corresponds to the cluster to which
 > the applications is deployed.

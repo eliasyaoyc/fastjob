@@ -1,7 +1,3 @@
-use fastjob_components_core::gossip::GossipConfig;
-use fastjob_components_core::server::Server;
-use fastjob_components_core::{gossip, server, ListenAddr};
-use fastjob_components_error::Error;
 use fastjob_components_utils::id_generator::GeneratorTyp;
 use fastjob_components_utils::{id_generator, signal_handler};
 use fastjob_components_worker::worker_manager;
@@ -13,6 +9,7 @@ use tokio::{
     sync::mpsc,
     time::{self, Duration},
 };
+use super::Result;
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -27,7 +24,7 @@ pub struct App {
 
 impl Config {
     /// Only build all components equivalent to initialization, and will not start.
-    pub fn build(self, shutdown_tx: mpsc::UnboundedSender<()>) -> Result<App, Error> {
+    pub fn build(self, shutdown_tx: mpsc::UnboundedSender<()>) -> Result<App> {
         let server = server::Server::build(
             id_generator::generator_id(GeneratorTyp::Server),
             &self.server,

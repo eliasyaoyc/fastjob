@@ -5,7 +5,6 @@ pub mod signal_handler;
 pub mod time;
 pub mod yatp_pool;
 pub mod plugin;
-pub mod timing_wheel;
 
 /// Represents a value of one of two possible types(a more generic Result.)
 #[derive(Debug, Clone)]

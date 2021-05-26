@@ -1,8 +1,3 @@
-mod rt;
-
-use fastjob_components_app::{option, Config};
-use fastjob_components_core::gossip::GossipConfig;
-use fastjob_components_core::{server, ListenAddr};
 use fastjob_components_log::{get_level_by_string, LogFormat};
 use fastjob_components_storage::StorageConfig;
 use fastjob_components_utils::signal;

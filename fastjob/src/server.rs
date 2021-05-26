@@ -1,7 +1,6 @@
 use crate::log::initial_logger;
 use crate::services::FastJobService;
-use crate::{gossip::GossipConfig, meta::MetaManager, ListenAddr};
-use fastjob_components_error::Error;
+use crate::{meta::MetaManager, ListenAddr};
 use fastjob_components_log::LogFormat;
 use fastjob_components_scheduler::Dispatcher;
 use fastjob_components_storage::{StorageBuilder, StorageConfig};
@@ -22,6 +21,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
+use super::Result;
 
 const GRPC_SERVER: &str = "GRPC-SERVER";
 
@@ -29,7 +29,6 @@ const GRPC_SERVER: &str = "GRPC-SERVER";
 pub struct ServiceConfig {
     pub addr: String,
     /// Consensus algorithm related config.
-    pub gossip: GossipConfig,
     pub storage_config: StorageConfig,
     pub log_level: slog::Level,
     pub log_file: String,
@@ -112,7 +111,7 @@ impl Server {
     /// 1. load metadata from disk if exists.
     /// 2. broadcast information about the current node to all `WorkerManger.`
     /// 3. try to stealing task from another node in cluster.
-    fn pre_start(&mut self) -> Result<(), Error> {
+    fn pre_start(&mut self) -> Result<()> {
         // Start all inner components.
         if !self.components.is_empty() {
             for elem in self.components.iter_mut() {
@@ -140,7 +139,7 @@ impl Server {
     }
 
     /// Run the fastJob server.
-    pub fn run(&mut self) -> Result<(), Error> {
+    pub fn run(&mut self) -> Result<()> {
         // 1. setup log component.
         initial_logger(&self.config);
 
@@ -177,7 +176,7 @@ impl Server {
     ///    if the task is not ready (in working), other state will directly transfer.
     /// 3. transfer and storage the current node metadata, if this node just restart simply so directly loading it from disk
     ///    and try to stealing task from other nodes
-    fn backend_shutdown(&self) -> Result<(), Error> {
+    fn backend_shutdown(&self) -> Result<()> {
         Ok(())
     }
 }

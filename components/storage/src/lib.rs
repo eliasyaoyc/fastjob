@@ -1,4 +1,3 @@
-use fastjob_components_error::Error;
 use fastjob_components_utils::component::Component;
 use rbatis::core::db::DBPoolOptions;
 use rbatis::crud::{CRUDTable, CRUD};
