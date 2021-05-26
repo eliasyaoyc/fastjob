@@ -1,8 +1,8 @@
+use super::Result;
 use crate::log::initial_logger;
 use crate::services::FastJobService;
 use crate::{meta::MetaManager, ListenAddr};
 use fastjob_components_log::LogFormat;
-use fastjob_components_scheduler::Dispatcher;
 use fastjob_components_storage::{StorageBuilder, StorageConfig};
 use fastjob_components_utils::component::Component;
 use fastjob_components_utils::Either;
@@ -21,7 +21,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use super::Result;
+use fastjob_components_scheduler::Dispatcher;
 
 const GRPC_SERVER: &str = "GRPC-SERVER";
 
@@ -60,8 +60,9 @@ impl Server {
         let env = Arc::new(EnvBuilder::new().name_prefix(GRPC_SERVER).build());
         let channel_args = ChannelBuilder::new(Arc::clone(&env)).build_args();
 
+        let (tx, rx) = crossbeam::channel::unbounded();
         // Constructor FastJob service.
-        let fastjob_service = FastJobService::new();
+        let fastjob_service = FastJobService::new(tx);
         fastjob_service.prepare();
 
         let builder = {
@@ -82,7 +83,7 @@ impl Server {
         let meta_mgr = MetaManager::new();
 
         // Constructor Scheduler.
-        let dispatcher = Dispatcher::new();
+        let dispatcher = Dispatcher::new(rx);
 
         let components: Vec<Box<dyn Component>> =
             vec![Box::new(storage), Box::new(meta_mgr), Box::new(dispatcher)];

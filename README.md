@@ -48,7 +48,7 @@ lock-free mind designing it and support group isolation.
 > **There are two options below**.
 > * Synchronize through database and check the heartbeat periodically.
 > * Use a consensus algorithm such as Gossip.
-> 
+>
 > I choose the first option,because of this is easier and faster that the database is used to store information such as task execution records.
 
 # To Do List
@@ -70,7 +70,7 @@ lock-free mind designing it and support group isolation.
 ```bash
 ```
 
-### Cluster
+### Docker
 
 ```bash
 

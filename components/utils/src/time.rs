@@ -97,7 +97,7 @@ mod inner {
 }
 
 /// A measurement of a monotonically increasing clock.
-/// It's similar and meant to replace `std::tome::Instant`,
+/// It's similar and meant to replace `std::time::Instant`,
 /// for providing extra features.
 #[derive(Copy, Clone, Debug)]
 pub enum Instant {

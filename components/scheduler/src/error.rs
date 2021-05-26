@@ -19,7 +19,5 @@ enum SchedError {
     NotMatch {},
 
     #[snafu(display("scheduler {} is too busy.", sched_id))]
-    SchedTooBusy {
-        sched_id: u64,
-    },
+    SchedTooBusy { sched_id: u64 },
 }

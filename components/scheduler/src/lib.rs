@@ -6,22 +6,29 @@
 //!                                         -> Dispatcher  -> Scheduler
 //!
 //! Dispatcher runs a single-thread event loop, but task execution are delegated to Scheduler.
-use std::sync::Arc;
-use fastjob_components_utils::component::Component;
 use crate::scheduler::Scheduler;
+use fastjob_components_utils::component::Component;
+use std::sync::Arc;
+use crossbeam::channel::Receiver;
+use delay_timer::entity::{DelayTimer, DelayTimerBuilder};
 
 mod algo;
 mod error;
 mod scheduler;
-mod sched_pool;
 
 pub struct Dispatcher {
     scheduler: Arc<Scheduler>,
+    receiver: Receiver<()>,
+    delay_timer: DelayTimer,
 }
 
 impl Dispatcher {
-    pub fn new() -> Self {
-        let dispatcher = Self { scheduler: Arc::new(Scheduler::new()) };
+    pub fn new(receiver: Receiver<()>) -> Self {
+        Self {
+            scheduler: Arc::new(Scheduler::new(2)),
+            receiver,
+            delay_timer: DelayTimerBuilder::default().enable_status_report().build(),
+        }
     }
 }
 

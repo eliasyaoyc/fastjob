@@ -1,19 +1,20 @@
 //! Scheduler which schedules the execution of `Task`. It receives commands from `WorkManager`.
 //!
 //! Scheduler keeps track of all the running task status and reports to `WorkerManager`.
-use fastjob_components_utils::component::Component;
 use crate::algo::Algorithm;
-use crossbeam_utils::CachePadded;
-use std::sync::Mutex;
-use std::collections::HashMap;
 use crate::sched_pool::SchedPool;
+use crossbeam_utils::CachePadded;
+use fastjob_components_utils::component::Component;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
+use crossbeam::utils::CachePadded;
+use fastjob_components_utils::sched_pool::SchedPool;
 
 /// Stores context of a task.
 struct TaskContext {}
 
 const SCHED_PENDING_TASK_THRESHOLD: usize = 10;
-
 
 #[derive(Clone)]
 struct SchedulerInner {
@@ -38,9 +39,7 @@ pub struct Scheduler {
 
 impl Scheduler {
     /// Creates a scheduler.
-    pub fn new(
-        worker_pool_size: usize,
-    ) -> Self {
+    pub fn new(worker_pool_size: usize) -> Self {
         Self {
             id: 0,
             inner: SchedulerInner {
@@ -48,7 +47,8 @@ impl Scheduler {
                 worker_pool: SchedPool::new(worker_pool_size, "sched-worker-pool"),
                 high_priority_pool: SchedPool::new(
                     std::cmp::max(1, worker_pool_size / 2),
-                    "sched-high-pri-pool"),
+                    "sched-high-pri-pool",
+                ),
                 running_task_num: Default::default(),
             },
         }

@@ -1,3 +1,5 @@
+use fastjob::Result;
+use fastjob::{server, Config};
 use fastjob_components_log::{get_level_by_string, LogFormat};
 use fastjob_components_storage::StorageConfig;
 use fastjob_components_utils::signal;
@@ -6,7 +8,6 @@ use std::io::Error;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 use structopt::StructOpt;
-use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
 const EX_USAGE: i32 = 64;
@@ -40,7 +41,7 @@ fn main() {
         }
     };
 
-    let (shutdown_tx, mut shutdown_rx) = mpsc::unbounded_channel();
+    let (shutdown_tx, mut shutdown_rx) = crossbeam::channel::unbounded();
     let app = match config.build(shutdown_tx) {
         Ok(app) => app,
         Err(e) => {
@@ -77,7 +78,7 @@ fn main() {
     // });
 }
 
-pub fn overwrite_config_with_cmd_args(opt: Opt) -> Result<Config, Error> {
+pub fn overwrite_config_with_cmd_args(opt: Opt) -> Result<Config> {
     let config = StorageConfig {
         addr: "localhost:3306".to_string(),
         username: "root".to_string(),
@@ -92,7 +93,6 @@ pub fn overwrite_config_with_cmd_args(opt: Opt) -> Result<Config, Error> {
     Ok(Config {
         server: server::ServiceConfig {
             addr: opt.addr,
-            gossip: GossipConfig {},
             log_level: get_level_by_string(&opt.log_level).unwrap(),
             log_file: "".to_string(),
             log_format: LogFormat::Text,
@@ -102,6 +102,5 @@ pub fn overwrite_config_with_cmd_args(opt: Opt) -> Result<Config, Error> {
             storage_config: config,
             log_rotation_size: 300,
         },
-        worker_manager: WorkerManagerConfig::default(),
     })
 }

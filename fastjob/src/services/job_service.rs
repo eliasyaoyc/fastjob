@@ -1,3 +1,4 @@
+use fastjob_components_storage::model::task::Task;
 use fastjob_components_utils::component::{Component, ComponentStatus};
 use fastjob_components_worker::worker_manager::{WorkerManager, WorkerManagerBuilder};
 use fastjob_proto::fastjob::*;
@@ -6,22 +7,28 @@ use futures::prelude::*;
 use grpcio::{RpcContext, UnarySink};
 use std::collections::HashMap;
 use std::mem::MaybeUninit;
-use fastjob_components_storage::model::task::Task;
+use std::sync::Arc;
+use fastjob_components_storage::Storage;
+use crossbeam::channel::Sender;
 
 const GRPC_RESPONSE_CODE: u64 = 200;
 
 /// Service handles the RPC messages for the `FastJob` service.
 #[derive(Clone)]
-pub struct Service {
+pub struct Service<S: Storage> {
     // Manager all tasks that belongs itself. Note that this manager collection includes all the
     // workload  and server itself that are registered with the server,so the collection's key is server id
-    work_mgrs: HashMap<u64, WorkerManager>,
+    work_mgrs: HashMap<u64, WorkerManager<S>>,
+    storage: Arc<S>,
+    sender: Sender<()>,
 }
 
-impl Service {
-    pub fn new() -> Self {
+impl<S: Storage> Service<S> {
+    pub fn new(sender: Sender<()>) -> Self {
         Self {
             work_mgrs: HashMap::new(),
+            storage: Arc::new(S),
+            sender,
         }
     }
 
@@ -29,7 +36,7 @@ impl Service {
     pub fn prepare(&self) {}
 }
 
-impl FastJob for Service {
+impl<S: Storage> FastJob for Service<S> {
     fn register_worker_manager(
         &mut self,
         ctx: RpcContext,
@@ -38,7 +45,7 @@ impl FastJob for Service {
     ) {
         let msg = format!(
             "Hello register_worker_manager {}",
-            req.get_workerManagerId()0-
+            req.get_workerManagerId()
         );
 
         debug!(
@@ -56,7 +63,7 @@ impl FastJob for Service {
                 WorkerManagerBuilder::builder(req.get_workerManagerConfig().clone())
                     .id(req.get_workerManagerId())
                     .scope(req.get_workerManagerScope())
-                    .build();
+                    .build(self.sender.clone());
 
             // Start worker manager.
             // todo. `Result` needs to be added to determine whether the execution was successful.

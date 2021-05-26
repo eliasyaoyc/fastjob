@@ -1,4 +1,4 @@
-pub mod future_pool;
+pub(crate) mod future_pool;
 
 use crate::time::{Duration, Instant};
 use future_pool::FuturePool;
@@ -185,24 +185,24 @@ impl<T: PoolTicker> YatpPoolBuilder<T> {
     }
 
     pub fn before_stop<F>(&mut self, f: F) -> &mut Self
-    where
-        F: Fn() + Send + Sync + 'static,
+        where
+            F: Fn() + Send + Sync + 'static,
     {
         self.before_stop = Some(Arc::new(f));
         self
     }
 
     pub fn after_start<F>(&mut self, f: F) -> &mut Self
-    where
-        F: Fn() + Send + Sync + 'static,
+        where
+            F: Fn() + Send + Sync + 'static,
     {
         self.after_start = Some(Arc::new(f));
         self
     }
 
     pub fn before_pause<F>(&mut self, f: F) -> &mut Self
-    where
-        F: Fn() + Send + Sync + 'static,
+        where
+            F: Fn() + Send + Sync + 'static,
     {
         self.before_pause = Some(Arc::new(f));
         self

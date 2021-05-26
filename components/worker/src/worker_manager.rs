@@ -4,19 +4,23 @@
 //! if don't have enough space that will reject task request and respond a full error message.
 //! so client will retry this request that send to another server util success unless achieved
 //! the maximum retry numbers and send has failed.
+use crate::job_fetcher::JobFetcher;
 use crate::Worker;
 use crossbeam::atomic::AtomicCell;
 use crossbeam::channel::{Receiver, Sender};
 use fastjob_components_storage::model::task::Task;
 use fastjob_components_utils::component::{Component, ComponentStatus};
+use fastjob_components_utils::timing_wheel::TimingWheel;
 use fastjob_proto::fastjob::{
     WorkerManagerConfig, WorkerManagerScope, WorkerManagerScope::ServerSide,
 };
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::atomic::Ordering::SeqCst;
-use crate::job_fetcher::JobFetcher;
-use fastjob_components_utils::timing_wheel::TimingWheel;
+use fastjob_components_storage::Storage;
+use super::Result;
+use fastjob_components_utils::sched_pool::SchedPool;
+use std::time::Duration;
 
 // #[derive(Debug, Clone, PartialEq, Eq)]
 // pub enum WorkerManagerScope {
@@ -39,27 +43,30 @@ use fastjob_components_utils::timing_wheel::TimingWheel;
 // #[derive(Clone, Debug)]
 // pub struct WorkerManagerConfig {}
 
-pub struct WorkerManager {
+const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
+const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
+const WORKER_MANAGER_FETCH_INIT_TIME: Duration = Duration::from_secs(2);
+const WORKER_MANAGER_FETCH_FIXED_TIME: Duration = Duration::from_secs(5);
+
+
+pub struct WorkerManager<S: Storage> {
     id: u64,
     status: AtomicCell<ComponentStatus>,
     config: WorkerManagerConfig,
     scope: WorkerManagerScope,
 
-    wait_queue: HashMap<u64, Task>,
-    // todo: instead of yatp scheduler pool
-    workers: Vec<Worker>,
+    sched_pool: SchedPool,
     job_fetcher: JobFetcher,
-    timing_wheel: TimingWheel,
-    // execute_queue:
+    storage: S,
 }
 
-impl Clone for WorkerManager {
+impl<S: Storage> Clone for WorkerManager<S> {
     fn clone(&self) -> Self {
         todo!()
     }
 }
 
-impl Debug for WorkerManager {
+impl<S: Storage> Debug for WorkerManager<S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
@@ -70,17 +77,17 @@ pub struct WorkerManagerBuilder {
     status: AtomicCell<ComponentStatus>,
     config: WorkerManagerConfig,
     scope: WorkerManagerScope,
-    workers: Vec<Worker>,
+    sender: Sender<()>,
 }
 
-impl WorkerManagerBuilder {
-    pub fn builder(config: WorkerManagerConfig) -> Self {
+impl<S: Storage> WorkerManagerBuilder {
+    pub fn builder(config: WorkerManagerConfig, sender: Sender<()>) -> Self {
         Self {
             id: 0,
             status: AtomicCell::new(ComponentStatus::Initialized),
             config,
             scope: WorkerManagerScope::EMPTY,
-            workers: vec![],
+            sender,
         }
     }
 
@@ -94,30 +101,25 @@ impl WorkerManagerBuilder {
         self
     }
 
-    pub fn build(self) -> WorkerManager {
-        let (tx, rx) = crossbeam::channel::unbounded();
+    pub fn build(self) -> WorkerManager<S> {
         WorkerManager {
             id: self.id,
             status: self.status,
             config: self.config,
             scope: self.scope,
-            workers: self.workers,
-            wait_queue: Default::default(),
-            job_fetcher: JobFetcher::new(tx),
-            timing_wheel: TimingWheel::new(rx),
+            sched_pool: SchedPool::new(
+                WORKER_MANAGER_SCHED_POOL_NUM_SIZE,
+                WORKER_MANAGER_SCHED_POOL_NAME),
+            job_fetcher: JobFetcher::new(self.sender),
+            storage: S,
         }
     }
 }
 
-impl Component for WorkerManager {
+impl<S: Storage> Component for WorkerManager<S> {
     fn prepare(&mut self) {
         assert_eq!(self.status.load(), ComponentStatus::Initialized);
 
-        // 1. Prepare yatp schedule pool.
-
-        // 2. Prepare checker thread.
-
-        // 3. Prepare fetch job thread.
         self.status.store(ComponentStatus::Ready);
     }
 
@@ -127,20 +129,11 @@ impl Component for WorkerManager {
         // Change status.
         self.status.store(ComponentStatus::Starting);
 
-        // 1. Start yatp schedule pool
-
-        // 2. Start checker thread that will check workloads and server itself whether have task,
-        //    if not or less than the minimum threshold, it will steal from another server.
-
-        // 3. Start fetch job thread.
-        std::thread::spawn(|| {
-            self.job_fetcher.clone().fetch();
-        });
-
-        // 4. Pop task from timing wheel.
-        std::thread::spawn(|| {
-            self.timing_wheel.pop();
-        });
+        // Start fetch job thread.
+        self.sched_pool.schedule_at_fixed_rate(
+            self.job_fetcher.fetch(),
+            WORKER_MANAGER_FETCH_INIT_TIME,
+            WORKER_MANAGER_FETCH_FIXED_TIME);
 
         self.status.store(ComponentStatus::Running);
     }
@@ -154,21 +147,21 @@ impl Component for WorkerManager {
     }
 }
 
-impl WorkerManager {
-    pub fn register_task(&mut self, task: Task) -> Result<(), Error> {
+impl<S: Storage> WorkerManager<S> {
+    pub fn register_task(&mut self, task: Task) -> Result<()> {
         Ok(())
     }
 
-    pub fn unregister_task(&mut self, task_id: &u64) -> Result<(), Error> {
+    pub fn unregister_task(&mut self, task_id: &u64) -> Result<()> {
         Ok(())
     }
 
     /// Manually perform a schedule.
-    pub fn manual_sched(&mut self) -> Result<(), Error> {
+    pub fn manual_sched(&mut self) -> Result<()> {
         self.sched()
     }
 
-    fn sched(&mut self) -> Result<(), Error> {
+    fn sched(&mut self) -> Result<()> {
         Ok(())
     }
 

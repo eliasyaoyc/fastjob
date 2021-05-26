@@ -7,7 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-fastjob-components-utils = { path = "../utils" }
 snafu = "0.6.10"
-crossbeam-utils = "0.8.1"
-delay_timer = "0.5.0"
+crossbeam = "0.8.0"
+delay_timer = { version = "0.5.0", features = ["full"] }
+fastjob-components-log = { path = "../log" }
+fastjob-components-utils = { path = "../utils" }

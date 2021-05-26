@@ -1,3 +1,6 @@
+use super::Result;
+use crate::server;
+use crossbeam::channel::Sender;
 use fastjob_components_utils::id_generator::GeneratorTyp;
 use fastjob_components_utils::{id_generator, signal_handler};
 use fastjob_components_worker::worker_manager;
@@ -5,40 +8,27 @@ use fastjob_proto::fastjob::{
     WorkerManagerConfig, WorkerManagerScope, WorkerManagerScope::ServerSide,
 };
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener};
-use tokio::{
-    sync::mpsc,
-    time::{self, Duration},
-};
-use super::Result;
+use tokio::time::{self, Duration};
 
 #[derive(Clone, Debug)]
 pub struct Config {
     pub server: server::ServiceConfig,
-    pub worker_manager: WorkerManagerConfig,
 }
 
 pub struct App {
     pub server: server::Server,
-    pub worker_manager: worker_manager::WorkerManager,
 }
 
 impl Config {
     /// Only build all components equivalent to initialization, and will not start.
-    pub fn build(self, shutdown_tx: mpsc::UnboundedSender<()>) -> Result<App> {
+    pub fn build(self, shutdown_tx: Sender<()>) -> Result<App> {
         let server = server::Server::build(
             id_generator::generator_id(GeneratorTyp::Server),
             &self.server,
         );
 
-        let worker_manager =
-            worker_manager::WorkerManagerBuilder::builder(self.worker_manager.clone())
-                .id(id_generator::generator_id(GeneratorTyp::WorkerManager))
-                .scope(ServerSide)
-                .build();
-
         Ok(App {
-            server,
-            worker_manager,
+            server
         })
     }
 }
@@ -47,8 +37,7 @@ impl App {
     /// Run a FastJob server include scheduler 、workerManager 、gossip 、admin components etc.
     pub fn spawn(self) {
         let App {
-            mut server,
-            mut worker_manager,
+            mut server
         } = self;
 
         server
