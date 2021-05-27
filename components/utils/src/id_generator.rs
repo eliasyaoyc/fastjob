@@ -5,6 +5,11 @@ pub enum GeneratorTyp {
     WorkerManager,
 }
 
+pub struct IdGenerator {
+    server_generator: SnowflakeIdBucket,
+    task_generator: SnowflakeIdBucket,
+}
+
 /// Generator unique id use snowflake.
 pub fn generator_id(typ: GeneratorTyp) -> u64 {
     let mut id_generator_generator = SnowflakeIdGenerator::new(1, 1);
