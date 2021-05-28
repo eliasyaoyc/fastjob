@@ -27,18 +27,14 @@ impl Config {
             &self.server,
         );
 
-        Ok(App {
-            server
-        })
+        Ok(App { server })
     }
 }
 
 impl App {
     /// Run a FastJob server include scheduler 、workerManager 、gossip 、admin components etc.
     pub fn spawn(self) {
-        let App {
-            mut server
-        } = self;
+        let App { mut server } = self;
 
         server
             .run()

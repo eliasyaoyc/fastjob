@@ -1,11 +1,5 @@
-mod job_fetcher;
-mod worker;
-pub mod worker_manager;
 mod error;
+mod job_fetcher;
+pub mod worker_manager;
 
 pub use error::Result;
-
-#[derive(Debug, Clone)]
-pub struct Worker {
-    id: usize,
-}

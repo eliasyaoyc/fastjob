@@ -4,12 +4,15 @@
 //! if don't have enough space that will reject task request and respond a full error message.
 //! so client will retry this request that send to another server util success unless achieved
 //! the maximum retry numbers and send has failed.
+use super::Result;
 use crate::job_fetcher::JobFetcher;
 use crate::Worker;
 use crossbeam::atomic::AtomicCell;
 use crossbeam::channel::{Receiver, Sender};
 use fastjob_components_storage::model::task::Task;
+use fastjob_components_storage::Storage;
 use fastjob_components_utils::component::{Component, ComponentStatus};
+use fastjob_components_utils::sched_pool::{JobHandle, SchedPool};
 use fastjob_components_utils::timing_wheel::TimingWheel;
 use fastjob_proto::fastjob::{
     WorkerManagerConfig, WorkerManagerScope, WorkerManagerScope::ServerSide,
@@ -17,9 +20,6 @@ use fastjob_proto::fastjob::{
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::atomic::Ordering::SeqCst;
-use fastjob_components_storage::Storage;
-use super::Result;
-use fastjob_components_utils::sched_pool::SchedPool;
 use std::time::Duration;
 
 // #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,15 +48,14 @@ const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
 const WORKER_MANAGER_FETCH_INIT_TIME: Duration = Duration::from_secs(2);
 const WORKER_MANAGER_FETCH_FIXED_TIME: Duration = Duration::from_secs(5);
 
-
 pub struct WorkerManager<S: Storage> {
-    id: u64,
+    id: i64,
     status: AtomicCell<ComponentStatus>,
     config: WorkerManagerConfig,
     scope: WorkerManagerScope,
 
     sched_pool: SchedPool,
-    job_fetcher: JobFetcher,
+    job_fetcher: JobFetcher<S>,
     storage: S,
 }
 
@@ -68,12 +67,20 @@ impl<S: Storage> Clone for WorkerManager<S> {
 
 impl<S: Storage> Debug for WorkerManager<S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        f.debug_tuple("")
+            .field(&self.id)
+            .field(&self.status)
+            .field(&self.config)
+            .field(&self.scope)
+            .field(&self.sched_pool)
+            .field(&self.job_fetcher)
+            .field(&self.storage)
+            .finish()
     }
 }
 
 pub struct WorkerManagerBuilder {
-    id: u64,
+    id: i64,
     status: AtomicCell<ComponentStatus>,
     config: WorkerManagerConfig,
     scope: WorkerManagerScope,
@@ -109,8 +116,9 @@ impl<S: Storage> WorkerManagerBuilder {
             scope: self.scope,
             sched_pool: SchedPool::new(
                 WORKER_MANAGER_SCHED_POOL_NUM_SIZE,
-                WORKER_MANAGER_SCHED_POOL_NAME),
-            job_fetcher: JobFetcher::new(self.sender),
+                WORKER_MANAGER_SCHED_POOL_NAME,
+            ),
+            job_fetcher: JobFetcher::new(self.id, self.sender, S),
             storage: S,
         }
     }
@@ -130,10 +138,13 @@ impl<S: Storage> Component for WorkerManager<S> {
         self.status.store(ComponentStatus::Starting);
 
         // Start fetch job thread.
-        self.sched_pool.schedule_at_fixed_rate(
+        let handler = self.sched_pool.schedule_at_fixed_rate(
             self.job_fetcher.fetch(),
             WORKER_MANAGER_FETCH_INIT_TIME,
-            WORKER_MANAGER_FETCH_FIXED_TIME);
+            WORKER_MANAGER_FETCH_FIXED_TIME,
+        );
+
+        self.job_fetcher.set_handler(handler);
 
         self.status.store(ComponentStatus::Running);
     }
@@ -141,7 +152,8 @@ impl<S: Storage> Component for WorkerManager<S> {
     fn stop(&mut self) {
         assert_eq!(self.status.load(), ComponentStatus::Running);
         self.status.store(ComponentStatus::Terminating);
-        // code
+
+        self.job_fetcher.canceled();
 
         self.status.store(ComponentStatus::Shutdown);
     }

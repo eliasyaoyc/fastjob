@@ -1,4 +1,4 @@
-use snowflake::{SnowflakeIdGenerator, SnowflakeIdBucket};
+use snowflake::{SnowflakeIdBucket, SnowflakeIdGenerator};
 
 pub enum GeneratorTyp {
     Server,

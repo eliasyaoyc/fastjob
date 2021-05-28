@@ -56,6 +56,11 @@ lock-free mind designing it and support group isolation.
 - [ ] support map-reduce.
 - [ ] container task.
 - [ ] task tag.
+- [x] support log.
+- [ ] support metrics, e.g. prometheus etc.
+- [ ] support alarm, e.g. dingding etc.
+- [ ] support docker startup.
+- [ ] support admin.
 
 # Example
 

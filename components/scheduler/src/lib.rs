@@ -7,10 +7,10 @@
 //!
 //! Dispatcher runs a single-thread event loop, but task execution are delegated to Scheduler.
 use crate::scheduler::Scheduler;
-use fastjob_components_utils::component::Component;
-use std::sync::Arc;
 use crossbeam::channel::Receiver;
 use delay_timer::entity::{DelayTimer, DelayTimerBuilder};
+use fastjob_components_utils::component::Component;
+use std::sync::Arc;
 
 mod algo;
 mod error;

@@ -12,6 +12,11 @@ use std::time::Duration;
 pub mod model;
 mod rbatis_test;
 
+mod error;
+
+use error::{Result, StorageError};
+use std::fmt::Display;
+
 #[derive(Clone, Debug)]
 pub struct StorageConfig {
     pub addr: String,
@@ -40,31 +45,31 @@ impl Default for StorageConfig {
 }
 
 pub trait Storage {
-    fn save<T>(&self, t: &T) -> Result<(), Error>
+    fn save<T>(&self, t: &T) -> Result<()>
     where
-        T: CRUDTable;
+        T: CRUDTable + Display;
 
-    fn save_batch<T>(&self, t: &[T]) -> Result<(), Error>
+    fn save_batch<T>(&self, t: &[T]) -> Result<()>
     where
-        T: CRUDTable;
+        T: CRUDTable + Display;
 
-    fn delete<T>(&self, id: &T::IdType) -> Result<u64, Error>
+    fn delete<T>(&self, id: &T::IdType) -> Result<u64>
     where
-        T: CRUDTable;
+        T: CRUDTable + Display;
 
-    fn delete_batch<T>(&self, ids: &[T::IdType]) -> Result<(), Error>
+    fn delete_batch<T>(&self, ids: &[T::IdType]) -> Result<()>
     where
-        T: CRUDTable;
+        T: CRUDTable + Display;
 
-    fn fetch<T>(&self, w: &Wrapper) -> Result<T, Error>
+    fn fetch<T>(&self, w: &Wrapper) -> Result<T>
     where
-        T: CRUDTable;
+        T: CRUDTable + Display;
 
-    fn fetch_page<T>(&self, w: &Wrapper, page_no: u64, page_size: u64) -> Result<Page<T>, Error>
+    fn fetch_page<T>(&self, w: &Wrapper, page_no: u64, page_size: u64) -> Result<Page<T>>
     where
-        T: CRUDTable;
+        T: CRUDTable + Display;
 
-    fn update<T>(&self, models: &mut [T]) -> Result<(), Error>
+    fn update<T>(&self, models: &mut [T]) -> Result<()>
     where
         T: CRUDTable;
 }
@@ -112,29 +117,32 @@ impl Component for MysqlStorage {
     }
 
     fn start(&mut self) {
-        todo!()
+        unreachable!()
     }
 
     fn stop(&mut self) {
-        todo!()
+        unreachable!()
     }
 }
 
 impl Storage for MysqlStorage {
-    fn save<T>(&self, model: &T) -> Result<(), Error>
+    fn save<T>(&self, model: &T) -> Result<()>
     where
-        T: CRUDTable,
+        T: CRUDTable + Display,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
             self.rb.save("", model).await
         }) {
             Ok(_) => Ok(()),
-            Err(e) => Err(Box::new(e)),
+            Err(e) => Err(StorageError::SaveError {
+                msg: model,
+                source: e,
+            }),
         }
     }
 
-    fn save_batch<T>(&self, model: &[T]) -> Result<(), Error>
+    fn save_batch<T>(&self, model: &[T]) -> Result<()>
     where
         T: CRUDTable,
     {
@@ -143,11 +151,14 @@ impl Storage for MysqlStorage {
             self.rb.save_batch("", model).await
         }) {
             Ok(_) => Ok(()),
-            Err(e) => Err(Box::new(e)),
+            Err(e) => Err(StorageError::SaveBatchError {
+                msg: model,
+                source: e,
+            }),
         }
     }
 
-    fn delete<T>(&self, id: &T::IdType) -> Result<u64, Error>
+    fn delete<T>(&self, id: &T::IdType) -> Result<u64>
     where
         T: CRUDTable,
     {
@@ -156,11 +167,11 @@ impl Storage for MysqlStorage {
             self.rb.remove_by_id::<T>("", id).await
         }) {
             Ok(v) => Ok(v),
-            Err(e) => Err(Box::new(e)),
+            Err(e) => Err(StorageError::DeleteError { msg: id, source: e }),
         }
     }
 
-    fn delete_batch<T>(&self, ids: &[<T as CRUDTable>::IdType]) -> Result<(), Error>
+    fn delete_batch<T>(&self, ids: &[<T as CRUDTable>::IdType]) -> Result<()>
     where
         T: CRUDTable,
     {
@@ -169,11 +180,14 @@ impl Storage for MysqlStorage {
             self.rb.remove_batch_by_id::<T>("", ids).await
         }) {
             Ok(_) => Ok(()),
-            Err(e) => Err(Box::new(e)),
+            Err(e) => Err(StorageError::DeleteBatchError {
+                msg: ids,
+                source: e,
+            }),
         }
     }
 
-    fn fetch<T>(&self, w: &Wrapper) -> Result<T, Error>
+    fn fetch<T>(&self, w: &Wrapper) -> Result<T>
     where
         T: CRUDTable,
     {
@@ -182,11 +196,11 @@ impl Storage for MysqlStorage {
             self.rb.fetch_by_wrapper("", w).await
         }) {
             Ok(v) => Ok(v),
-            Err(e) => Err(Box::new(e)),
+            Err(e) => Err(StorageError::FetchError { msg: w, source: e }),
         }
     }
 
-    fn fetch_page<T>(&self, w: &Wrapper, page_no: u64, page_size: u64) -> Result<Page<T>, Error>
+    fn fetch_page<T>(&self, w: &Wrapper, page_no: u64, page_size: u64) -> Result<Page<T>>
     where
         T: CRUDTable,
     {
@@ -196,11 +210,11 @@ impl Storage for MysqlStorage {
             self.rb.fetch_page_by_wrapper("", w, page).await
         }) {
             Ok(v) => Ok(v),
-            Err(e) => Err(Box::new(e)),
+            Err(e) => Err(StorageError::FetchBatchError { msg: w, source: e }),
         }
     }
 
-    fn update<T>(&self, modes: &mut [T]) -> Result<(), Error>
+    fn update<T>(&self, modes: &mut [T]) -> Result<()>
     where
         T: CRUDTable,
     {
@@ -209,7 +223,10 @@ impl Storage for MysqlStorage {
             self.rb.update_batch_by_id("", modes).await
         }) {
             Ok(_) => Ok(()),
-            Err(e) => Err(Box::new(e)),
+            Err(e) => Err(StorageError::UpdateError {
+                msg: modes,
+                source: e,
+            }),
         }
     }
 }

@@ -1,4 +1,6 @@
+use crossbeam::channel::Sender;
 use fastjob_components_storage::model::task::Task;
+use fastjob_components_storage::Storage;
 use fastjob_components_utils::component::{Component, ComponentStatus};
 use fastjob_components_worker::worker_manager::{WorkerManager, WorkerManagerBuilder};
 use fastjob_proto::fastjob::*;
@@ -8,8 +10,6 @@ use grpcio::{RpcContext, UnarySink};
 use std::collections::HashMap;
 use std::mem::MaybeUninit;
 use std::sync::Arc;
-use fastjob_components_storage::Storage;
-use crossbeam::channel::Sender;
 
 const GRPC_RESPONSE_CODE: u64 = 200;
 
@@ -59,11 +59,13 @@ impl<S: Storage> FastJob for Service<S> {
         let key = req.get_workerManagerId();
 
         if !self.work_mgrs.contains_key(&key) {
-            let mut worker_mgr =
-                WorkerManagerBuilder::builder(req.get_workerManagerConfig().clone())
-                    .id(req.get_workerManagerId())
-                    .scope(req.get_workerManagerScope())
-                    .build(self.sender.clone());
+            let mut worker_mgr = WorkerManagerBuilder::builder(
+                req.get_workerManagerConfig().clone(),
+                self.sender.clone(),
+            )
+            .id(req.get_workerManagerId())
+            .scope(req.get_workerManagerScope())
+            .build();
 
             // Start worker manager.
             // todo. `Result` needs to be added to determine whether the execution was successful.

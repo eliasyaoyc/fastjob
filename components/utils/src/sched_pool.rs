@@ -1,15 +1,15 @@
 use crate::yatp_pool::future_pool::FuturePool;
 use crate::yatp_pool::{PoolTicker, YatpPoolBuilder};
-use std::time::{Duration, Instant};
-use std::collections::BinaryHeap;
-use std::sync::atomic::{AtomicBool, self};
-use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
-use std::sync::Arc;
 use parking_lot::{Condvar, Mutex};
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
+use std::collections::BinaryHeap;
 use std::panic::{self, AssertUnwindSafe};
+use std::sync::atomic::{self, AtomicBool};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 /// A handle to a schedule job.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct JobHandle(Arc<AtomicBool>);
 
 impl JobHandle {
@@ -77,7 +77,7 @@ impl SharedPool {
         match inner.queue.peek() {
             None => self.cvar.notify_all(),
             Some(e) if e.time >= job.time => self.cvar.notify_all(),
-            _ => { 0usize }
+            _ => 0usize,
         };
 
         inner.queue.push(job);
@@ -106,11 +106,10 @@ impl Drop for SchedPool {
 impl SchedPool {
     pub fn new(pool_size: usize, name_prefix: &str) -> Self {
         let shared_pool = Arc::new(SharedPool {
-            inner: Mutex::new(
-                InnerPool {
-                    queue: BinaryHeap::new(),
-                    shutdown: false,
-                }),
+            inner: Mutex::new(InnerPool {
+                queue: BinaryHeap::new(),
+                shutdown: false,
+            }),
             cvar: Condvar::new(),
         });
 
@@ -120,9 +119,10 @@ impl SchedPool {
             .name_prefix(name_prefix)
             .build_future_pool();
 
-
         for _ in 0..pool_size {
-            let w = Worker { shared: shared_pool.clone() };
+            let w = Worker {
+                shared: shared_pool.clone(),
+            };
             pool.spawn(async move {
                 w.run();
             });
@@ -140,9 +140,14 @@ impl SchedPool {
     /// encounters an exception, subsequent executions are suppressed.Otherwise, the task will only
     /// terminate via cancellation or termination of the executor. If any execution of this task takes
     /// longer than its period,then subsequent executions may start late, but will not concurrently execute
-    pub fn schedule_at_fixed_rate<F>(&self, f: F, initial_delay: Duration, period: Duration) -> JobHandle
-        where
-            F: FnMut() + Send + 'static
+    pub fn schedule_at_fixed_rate<F>(
+        &self,
+        f: F,
+        initial_delay: Duration,
+        period: Duration,
+    ) -> JobHandle
+    where
+        F: FnMut() + Send + 'static,
     {
         let canceled = Arc::new(AtomicBool::new(false));
         let job = Job {
@@ -162,9 +167,14 @@ impl SchedPool {
     /// of the next. If any execution of the task encounters an exception, subsequent executions are suppressed.
     /// Otherwise, the task will only terminate
     /// e via cancellation or termination of the executor.
-    pub fn schedule_at_fixed_delay<F>(&self, f: F, initial_delay: Duration, period: Duration) -> JobHandle
-        where
-            F: FnMut() + Send + 'static
+    pub fn schedule_at_fixed_delay<F>(
+        &self,
+        f: F,
+        initial_delay: Duration,
+        period: Duration,
+    ) -> JobHandle
+    where
+        F: FnMut() + Send + 'static,
     {
         let canceled = Arc::new(AtomicBool::new(false));
         let job = Job {
@@ -211,7 +221,9 @@ impl Worker {
 
             match need {
                 Need::Wait => self.shared.cvar.wait(&mut inner),
-                Need::WaitTimeout(t) => { self.shared.cvar.wait_until(&mut inner, now + t); }
+                Need::WaitTimeout(t) => {
+                    self.shared.cvar.wait_until(&mut inner, now + t);
+                }
             };
         }
         Some(inner.queue.pop().unwrap())
@@ -245,7 +257,6 @@ impl Worker {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::sync::mpsc::channel;
@@ -268,7 +279,8 @@ mod tests {
                 std::thread::sleep(Duration::from_millis(200));
             },
             Duration::from_millis(500),
-            Duration::from_millis(500));
+            Duration::from_millis(500),
+        );
 
         println!("{}", rx.recv().unwrap().as_millis());
         println!("{}", rx.recv().unwrap().as_millis());
@@ -300,9 +312,11 @@ mod tests {
                 move || {
                     waiter.wait();
                     tx.send(1usize).unwrap();
-                }, Duration::from_nanos(0),
-                Duration::from_nanos(0), );
-        };
+                },
+                Duration::from_nanos(0),
+                Duration::from_nanos(0),
+            );
+        }
 
         assert_eq!(rx.iter().take(TASKS).sum::<usize>(), TASKS);
     }
@@ -325,7 +339,8 @@ mod tests {
                 }
             },
             Duration::from_millis(500),
-            Duration::from_millis(500), );
+            Duration::from_millis(500),
+        );
 
         drop(pool);
 
@@ -336,14 +351,13 @@ mod tests {
         assert!(rx.recv().is_err());
     }
 
-
     #[test]
     fn cancellation() {
         let pool = SchedPool::new(TASKS, "sched-pool");
         let (tx, rx) = channel();
 
         let handle = pool.schedule_at_fixed_rate(
-            move || { tx.send(()).unwrap() },
+            move || tx.send(()).unwrap(),
             Duration::from_millis(500),
             Duration::from_millis(500),
         );
@@ -353,42 +367,3 @@ mod tests {
         assert!(rx.recv().is_err())
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

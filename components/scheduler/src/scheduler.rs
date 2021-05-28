@@ -3,13 +3,13 @@
 //! Scheduler keeps track of all the running task status and reports to `WorkerManager`.
 use crate::algo::Algorithm;
 use crate::sched_pool::SchedPool;
+use crossbeam::utils::CachePadded;
 use crossbeam_utils::CachePadded;
 use fastjob_components_utils::component::Component;
+use fastjob_components_utils::sched_pool::SchedPool;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
-use crossbeam::utils::CachePadded;
-use fastjob_components_utils::sched_pool::SchedPool;
 
 /// Stores context of a task.
 struct TaskContext {}

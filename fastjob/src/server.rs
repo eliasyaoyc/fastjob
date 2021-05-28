@@ -3,6 +3,7 @@ use crate::log::initial_logger;
 use crate::services::FastJobService;
 use crate::{meta::MetaManager, ListenAddr};
 use fastjob_components_log::LogFormat;
+use fastjob_components_scheduler::Dispatcher;
 use fastjob_components_storage::{StorageBuilder, StorageConfig};
 use fastjob_components_utils::component::Component;
 use fastjob_components_utils::Either;
@@ -21,7 +22,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use fastjob_components_scheduler::Dispatcher;
 
 const GRPC_SERVER: &str = "GRPC-SERVER";
 
