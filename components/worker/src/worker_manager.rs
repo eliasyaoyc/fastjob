@@ -98,7 +98,7 @@ impl<S: Storage> WorkerManagerBuilder {
         }
     }
 
-    pub fn id(mut self, id: u64) -> Self {
+    pub fn id(mut self, id: i64) -> Self {
         self.id = id;
         self
     }
