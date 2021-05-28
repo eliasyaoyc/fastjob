@@ -21,6 +21,8 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::atomic::Ordering::SeqCst;
 use std::time::Duration;
+use crate::executor::Executor;
+use fastjob_components_storage::model::job_info::JobInfo;
 
 // #[derive(Debug, Clone, PartialEq, Eq)]
 // pub enum WorkerManagerScope {
@@ -57,6 +59,7 @@ pub struct WorkerManager<S: Storage> {
     sched_pool: SchedPool,
     job_fetcher: JobFetcher<S>,
     storage: S,
+    executor: Executor,
 }
 
 impl<S: Storage> Clone for WorkerManager<S> {
@@ -84,11 +87,11 @@ pub struct WorkerManagerBuilder {
     status: AtomicCell<ComponentStatus>,
     config: WorkerManagerConfig,
     scope: WorkerManagerScope,
-    sender: Sender<()>,
+    sender: Sender<Vec<JobInfo>>,
 }
 
 impl<S: Storage> WorkerManagerBuilder {
-    pub fn builder(config: WorkerManagerConfig, sender: Sender<()>) -> Self {
+    pub fn builder(config: WorkerManagerConfig, sender: Sender<Vec<JobInfo>>) -> Self {
         Self {
             id: 0,
             status: AtomicCell::new(ComponentStatus::Initialized),
@@ -120,6 +123,7 @@ impl<S: Storage> WorkerManagerBuilder {
             ),
             job_fetcher: JobFetcher::new(self.id, self.sender, S),
             storage: S,
+            executor: Executor {},
         }
     }
 }
@@ -127,6 +131,9 @@ impl<S: Storage> WorkerManagerBuilder {
 impl<S: Storage> Component for WorkerManager<S> {
     fn prepare(&mut self) {
         assert_eq!(self.status.load(), ComponentStatus::Initialized);
+
+        // build executor.
+
 
         self.status.store(ComponentStatus::Ready);
     }
@@ -136,6 +143,8 @@ impl<S: Storage> Component for WorkerManager<S> {
 
         // Change status.
         self.status.store(ComponentStatus::Starting);
+
+        self.executor.start();
 
         // Start fetch job thread.
         let handler = self.sched_pool.schedule_at_fixed_rate(
@@ -154,6 +163,7 @@ impl<S: Storage> Component for WorkerManager<S> {
         self.status.store(ComponentStatus::Terminating);
 
         self.job_fetcher.canceled();
+        self.executor.stop();
 
         self.status.store(ComponentStatus::Shutdown);
     }

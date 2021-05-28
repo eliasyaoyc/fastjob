@@ -1,6 +1,7 @@
 mod error;
 mod job_fetcher;
 pub mod worker_manager;
+mod executor;
 
 pub use error::Result;
 
