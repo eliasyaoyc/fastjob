@@ -1,4 +1,5 @@
 use crossbeam::channel::Sender;
+use fastjob_components_storage::model::job_info::JobInfo;
 use fastjob_components_storage::model::task::Task;
 use fastjob_components_storage::Storage;
 use fastjob_components_utils::component::{Component, ComponentStatus};
@@ -10,7 +11,6 @@ use grpcio::{RpcContext, UnarySink};
 use std::collections::HashMap;
 use std::mem::MaybeUninit;
 use std::sync::Arc;
-use fastjob_components_storage::model::job_info::JobInfo;
 
 const GRPC_RESPONSE_CODE: u64 = 200;
 
@@ -64,9 +64,9 @@ impl<S: Storage> FastJob for Service<S> {
                 req.get_workerManagerConfig().clone(),
                 self.sender.clone(),
             )
-                .id(req.get_workerManagerId())
-                .scope(req.get_workerManagerScope())
-                .build();
+            .id(req.get_workerManagerId())
+            .scope(req.get_workerManagerScope())
+            .build();
 
             // Start worker manager.
             // todo. `Result` needs to be added to determine whether the execution was successful.

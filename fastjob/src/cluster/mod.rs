@@ -1,16 +1,15 @@
-use crate::{ListenAddr, ListenAddrs};
 use fastjob_components_utils::component::Component;
 
 #[derive(Clone, Debug)]
-pub struct MetaManager {}
+pub struct Cluster {}
 
-impl MetaManager {
-    pub fn new() -> MetaManager {
+impl Cluster {
+    pub fn new() -> Cluster {
         Self {}
     }
 }
 
-impl Component for MetaManager {
+impl Component for Cluster {
     fn start(&mut self) {
         todo!()
     }

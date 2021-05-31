@@ -1,6 +1,6 @@
+use rbatis::crud::CRUDTable;
 use snafu::{ResultExt, Snafu};
 use std::fmt::Display;
-use rbatis::crud::CRUDTable;
 
 pub type Result<T, E = rbatis::Error> = std::result::Result<T, E>;
 
@@ -24,5 +24,3 @@ pub enum StorageError {
     // #[snafu(display("Storage update failure; msg: {}, error : {}", msg.display(), source))]
     // UpdateError { msg: T, source: rbatis::Error },
 }
-
-

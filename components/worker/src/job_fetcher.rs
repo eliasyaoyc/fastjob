@@ -1,8 +1,8 @@
 use super::Result;
 use crossbeam::channel::Sender;
+use fastjob_components_storage::model::job_info::JobInfo;
 use fastjob_components_storage::{Storage, Wrapper};
 use fastjob_components_utils::sched_pool::JobHandle;
-use fastjob_components_storage::model::job_info::JobInfo;
 use snafu::ResultExt;
 
 /// A thread that periodically pulls job information from the database.
@@ -26,7 +26,9 @@ impl<S: Storage> JobFetcher<S> {
 
     pub fn fetch(&self) -> Result<()> {
         let mut page_no = 0;
-        let wrapper = self.storage.get_wrapper()
+        let wrapper = self
+            .storage
+            .get_wrapper()
             .eq("designated_workers", self.worker_manager_id);
 
         while let Ok(v) = self.storage.fetch_page(&wrapper, page_no, 10) {
@@ -34,7 +36,9 @@ impl<S: Storage> JobFetcher<S> {
                 break;
             }
             page_no = v.page_no * v.page_size;
-            self.sender.send(v.records).context("job fetcher send failed.")?;
+            self.sender
+                .send(v.records)
+                .context("job fetcher send failed.")?;
         }
         Ok(())
     }

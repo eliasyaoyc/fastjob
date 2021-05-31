@@ -1,10 +1,10 @@
+use crate::model::job_info::JobType::{Java, Shell};
 use rbatis::crud::{CRUDTable, CRUD};
 use rbatis::utils::string_util::to_snake_name;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;
-use crate::model::job_info::JobType::{Java, Shell};
 
 #[derive(TryFromPrimitive)]
 #[repr(usize)]
@@ -70,7 +70,6 @@ pub struct JobInfo {
     pub time_expression_type: Option<usize>,
 }
 
-
 impl CRUDTable for JobInfo {
     type IdType = u64;
 
@@ -82,4 +81,3 @@ impl CRUDTable for JobInfo {
         "job_info".to_string()
     }
 }
-

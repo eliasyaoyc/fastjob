@@ -5,10 +5,12 @@
 //! so client will retry this request that send to another server util success unless achieved
 //! the maximum retry numbers and send has failed.
 use super::Result;
+use crate::executor::Executor;
 use crate::job_fetcher::JobFetcher;
 use crate::Worker;
 use crossbeam::atomic::AtomicCell;
 use crossbeam::channel::{Receiver, Sender};
+use fastjob_components_storage::model::job_info::JobInfo;
 use fastjob_components_storage::model::task::Task;
 use fastjob_components_storage::Storage;
 use fastjob_components_utils::component::{Component, ComponentStatus};
@@ -21,29 +23,6 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::atomic::Ordering::SeqCst;
 use std::time::Duration;
-use crate::executor::Executor;
-use fastjob_components_storage::model::job_info::JobInfo;
-
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub enum WorkerManagerScope {
-//     /// Belongs to `FastJobServer`.
-//     ServerSide,
-//     /// Belongs to `ApplicationSDK`.
-//     ApplicationSide,
-//     EMPTY,
-// }
-
-// #[derive(Clone, Debug)]
-// pub enum WorkerManagerStatus {
-//     Initialized,
-//     Ready,
-//     Started,
-//     Terminating,
-//     Shutdown,
-// }
-
-// #[derive(Clone, Debug)]
-// pub struct WorkerManagerConfig {}
 
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";

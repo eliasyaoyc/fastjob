@@ -1,5 +1,5 @@
 use fastjob_components_utils::component::Component;
-use rbatis::core::db::{DBPoolOptions, DBExecResult};
+use rbatis::core::db::{DBExecResult, DBPoolOptions};
 use rbatis::crud::{CRUDTable, CRUD};
 use rbatis::plugin::page::{Page, PageRequest};
 use rbatis::rbatis::{Rbatis, RbatisOption};
@@ -15,8 +15,8 @@ mod rbatis_test;
 mod error;
 
 use error::{Result, StorageError};
-use std::fmt::{Display, Debug};
 use snafu::ResultExt;
+use std::fmt::{Debug, Display};
 
 #[derive(Clone, Debug)]
 pub struct StorageConfig {
@@ -47,32 +47,32 @@ impl Default for StorageConfig {
 
 pub trait Storage {
     fn save<T>(&self, t: T) -> Result<()>
-        where
-            T: CRUDTable;
+    where
+        T: CRUDTable;
 
     fn save_batch<T>(&self, t: &[T]) -> Result<()>
-        where
-            T: CRUDTable;
+    where
+        T: CRUDTable;
 
     fn delete<T>(&self, id: &T::IdType) -> Result<u64>
-        where
-            T: CRUDTable;
+    where
+        T: CRUDTable;
 
     fn delete_batch<T>(&self, ids: &[T::IdType]) -> Result<()>
-        where
-            T: CRUDTable;
+    where
+        T: CRUDTable;
 
     fn fetch<T>(&self, w: &Wrapper) -> Result<T>
-        where
-            T: CRUDTable;
+    where
+        T: CRUDTable;
 
     fn fetch_page<T>(&self, w: &Wrapper, page_no: u64, page_size: u64) -> Result<Page<T>>
-        where
-            T: CRUDTable;
+    where
+        T: CRUDTable;
 
     fn update<T>(&self, models: &mut [T]) -> Result<()>
-        where
-            T: CRUDTable;
+    where
+        T: CRUDTable;
 
     fn get_wrapper(&self) -> Wrapper;
 }
@@ -126,8 +126,8 @@ impl Component for MysqlStorage {
 
 impl Storage for MysqlStorage {
     fn save<'a, T>(&self, model: T) -> Result<()>
-        where
-            T: CRUDTable,
+    where
+        T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -139,8 +139,8 @@ impl Storage for MysqlStorage {
     }
 
     fn save_batch<T>(&self, model: &[T]) -> Result<()>
-        where
-            T: CRUDTable,
+    where
+        T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -152,8 +152,8 @@ impl Storage for MysqlStorage {
     }
 
     fn delete<T>(&self, id: &T::IdType) -> Result<u64>
-        where
-            T: CRUDTable,
+    where
+        T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -165,8 +165,8 @@ impl Storage for MysqlStorage {
     }
 
     fn delete_batch<T>(&self, ids: &[<T as CRUDTable>::IdType]) -> Result<()>
-        where
-            T: CRUDTable,
+    where
+        T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -178,8 +178,8 @@ impl Storage for MysqlStorage {
     }
 
     fn fetch<T>(&self, w: &Wrapper) -> Result<T>
-        where
-            T: CRUDTable,
+    where
+        T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -191,8 +191,8 @@ impl Storage for MysqlStorage {
     }
 
     fn fetch_page<T>(&self, w: &Wrapper, page_no: u64, page_size: u64) -> Result<Page<T>>
-        where
-            T: CRUDTable,
+    where
+        T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -205,8 +205,8 @@ impl Storage for MysqlStorage {
     }
 
     fn update<T>(&self, modes: &mut [T]) -> Result<()>
-        where
-            T: CRUDTable,
+    where
+        T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);

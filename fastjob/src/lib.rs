@@ -9,8 +9,8 @@ mod services;
 
 pub use error::Result;
 
+mod cluster;
 mod log;
-mod meta;
 pub mod server;
 
 use ipnet::IpAdd;

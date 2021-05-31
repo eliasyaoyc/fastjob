@@ -1,16 +1,15 @@
 use super::Result;
 use crate::log::initial_logger;
 use crate::services::FastJobService;
-use crate::{meta::MetaManager, ListenAddr};
+use crate::{cluster::Cluster, ListenAddr};
 use fastjob_components_log::LogFormat;
 use fastjob_components_scheduler::Dispatcher;
 use fastjob_components_storage::{StorageBuilder, StorageConfig};
 use fastjob_components_utils::component::Component;
-use fastjob_components_utils::Either;
+use fastjob_components_utils::{pair, Either};
 use fastjob_components_worker::worker_manager::WorkerManager;
 use fastjob_proto::fastjob_grpc::create_fast_job;
 use futures::prelude::*;
-use futures::{future, FutureExt};
 use grpcio::{
     ChannelBuilder, EnvBuilder, RpcContext, Server as GrpcServer, ServerBuilder, UnarySink,
 };
@@ -19,7 +18,7 @@ use std::future::Future;
 use std::net::{IpAddr, SocketAddr, TcpListener};
 use std::pin::Pin;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Condvar};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
@@ -74,19 +73,21 @@ impl Server {
             Either::Left(sb)
         };
 
+        let pair = pair::condvar_pair();
+
         // Constructor Storage.
         let storage = StorageBuilder::builder()
             .config(config.storage_config.clone())
             .build();
 
-        // Constructor MetaManager.
-        let meta_mgr = MetaManager::new();
+        // Constructor Cluster.
+        let cluster = Cluster::new();
 
         // Constructor Scheduler.
-        let dispatcher = Dispatcher::new(rx);
+        let dispatcher = Dispatcher::new(rx, &*pair.clone().0, &*pair.clone().1);
 
         let components: Vec<Box<dyn Component>> =
-            vec![Box::new(storage), Box::new(meta_mgr), Box::new(dispatcher)];
+            vec![Box::new(storage), Box::new(cluster), Box::new(dispatcher)];
 
         let mut serve = Self {
             id,
