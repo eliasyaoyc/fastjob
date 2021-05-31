@@ -9,7 +9,6 @@ pub enum ComponentStatus {
 }
 
 pub trait Component: Send + Sync + 'static {
-    fn prepare(&mut self);
     fn start(&mut self);
     fn stop(&mut self);
 }

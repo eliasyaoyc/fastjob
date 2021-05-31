@@ -114,7 +114,7 @@ impl<S: Storage> WorkerManagerBuilder {
     pub fn build(self) -> WorkerManager<S> {
         WorkerManager {
             id: self.id,
-            status: self.status,
+            status: AtomicCell::new(ComponentStatus::Ready),
             config: self.config,
             scope: self.scope,
             sched_pool: SchedPool::new(
@@ -129,15 +129,6 @@ impl<S: Storage> WorkerManagerBuilder {
 }
 
 impl<S: Storage> Component for WorkerManager<S> {
-    fn prepare(&mut self) {
-        assert_eq!(self.status.load(), ComponentStatus::Initialized);
-
-        // build executor.
-
-
-        self.status.store(ComponentStatus::Ready);
-    }
-
     fn start(&mut self) {
         assert_eq!(self.status.load(), ComponentStatus::Ready);
 
@@ -186,10 +177,6 @@ impl<S: Storage> WorkerManager<S> {
     fn sched(&mut self) -> Result<()> {
         Ok(())
     }
-
-    fn add_worker(&mut self) {}
-
-    fn stop_worker(&mut self) {}
 
     /// Determine if the worker is to be removed.
     #[inline]

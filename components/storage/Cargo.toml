@@ -12,6 +12,7 @@ serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
 bigdecimal = "0.2"
 rbatis = { version = "1.8" }
+num_enum = "0.5.1"
 ## logging lib(required)
 log = "0.4"
 fast_log="1.3"

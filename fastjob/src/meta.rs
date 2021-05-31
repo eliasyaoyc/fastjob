@@ -11,10 +11,6 @@ impl MetaManager {
 }
 
 impl Component for MetaManager {
-    fn prepare(&mut self) {
-        todo!()
-    }
-
     fn start(&mut self) {
         todo!()
     }

@@ -10,5 +10,9 @@ edition = "2018"
 snafu = "0.6.10"
 crossbeam = "0.8.0"
 delay_timer = { version = "0.5.0", features = ["full"] }
+parking_lot = "0.11.1"
+
 fastjob-components-log = { path = "../log" }
 fastjob-components-utils = { path = "../utils" }
+fastjob-components-storage = { path = "../storage" }
+

@@ -100,7 +100,7 @@ impl MysqlStorage {
 }
 
 impl Component for MysqlStorage {
-    fn prepare(&mut self) {
+    fn start(&mut self) {
         rbatis::core::runtime::task::block_on(async {
             // rb.link("mysql://root:yaoyichen52@localhost:3306/neptune")
             //     .await
@@ -117,10 +117,6 @@ impl Component for MysqlStorage {
             );
             self.rb.link_opt(&derive_url, &link_opt).await.unwrap();
         });
-    }
-
-    fn start(&mut self) {
-        unreachable!()
     }
 
     fn stop(&mut self) {
@@ -307,7 +303,7 @@ mod tests {
             version: Some(1),
             delete_flag: Some(1),
         };
-        storage.prepare();
+        storage.start();
         storage.save(&activity);
     }
 }

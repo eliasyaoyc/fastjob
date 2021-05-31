@@ -97,7 +97,7 @@ impl Server {
             components,
         };
 
-        match serve.pre_start() {
+        match serve.start() {
             Ok(_) => {}
             Err(e) => {
                 error!("init config error {}.", e);
@@ -108,11 +108,11 @@ impl Server {
         serve
     }
 
-    /// pre_start server, do as follows:
+    /// start server, do as follows:
     /// 1. load metadata from disk if exists.
     /// 2. broadcast information about the current node to all `WorkerManger.`
     /// 3. try to stealing task from another node in cluster.
-    fn pre_start(&mut self) -> Result<()> {
+    fn start(&mut self) -> Result<()> {
         // Start all inner components.
         if !self.components.is_empty() {
             for elem in self.components.iter_mut() {
