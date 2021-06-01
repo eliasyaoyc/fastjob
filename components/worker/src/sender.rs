@@ -106,3 +106,6 @@ impl Sender {
 
     pub fn stop(&self) {}
 }
+
+#[cfg(test)]
+mod tests {}

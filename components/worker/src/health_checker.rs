@@ -13,3 +13,9 @@ impl HealthChecker {
 }
 
 struct FailOver {}
+
+
+#[cfg(test)]
+mod tests{
+
+}

@@ -212,3 +212,8 @@ impl<S: Storage> WorkerManager<S> {
         self.status.load()
     }
 }
+
+#[cfg(test)]
+mod tests{
+
+}

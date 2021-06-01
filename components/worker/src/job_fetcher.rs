@@ -63,3 +63,14 @@ impl<S: Storage> JobFetcher<S> {
         self.job_handler.cancel();
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn t_fetch() {
+
+    }
+}
