@@ -11,6 +11,7 @@ use grpcio::{RpcContext, UnarySink};
 use std::collections::HashMap;
 use std::mem::MaybeUninit;
 use std::sync::Arc;
+use fastjob_components_utils::pair::PairCond;
 
 const GRPC_RESPONSE_CODE: u64 = 200;
 
@@ -22,14 +23,16 @@ pub struct Service<S: Storage> {
     work_mgrs: HashMap<u64, WorkerManager<S>>,
     storage: Arc<S>,
     sender: Sender<Vec<JobInfo>>,
+    pair: Arc<PairCond>,
 }
 
 impl<S: Storage> Service<S> {
-    pub fn new(sender: Sender<Vec<JobInfo>>) -> Self {
+    pub fn new(sender: Sender<Vec<JobInfo>>, pair: Arc<PairCond>) -> Self {
         Self {
             work_mgrs: HashMap::new(),
             storage: Arc::new(S),
             sender,
+            pair,
         }
     }
 
@@ -63,10 +66,11 @@ impl<S: Storage> FastJob for Service<S> {
             let mut worker_mgr = WorkerManagerBuilder::builder(
                 req.get_workerManagerConfig().clone(),
                 self.sender.clone(),
+                self.pair.clone(),
             )
-            .id(req.get_workerManagerId())
-            .scope(req.get_workerManagerScope())
-            .build();
+                .id(req.get_workerManagerId())
+                .scope(req.get_workerManagerScope())
+                .build();
 
             // Start worker manager.
             // todo. `Result` needs to be added to determine whether the execution was successful.

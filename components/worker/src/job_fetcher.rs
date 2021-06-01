@@ -4,6 +4,8 @@ use fastjob_components_storage::model::job_info::JobInfo;
 use fastjob_components_storage::{Storage, Wrapper};
 use fastjob_components_utils::sched_pool::JobHandle;
 use snafu::ResultExt;
+use fastjob_components_utils::pair::PairCond;
+use std::sync::Arc;
 
 /// A thread that periodically pulls job information from the database.
 #[derive(Clone)]
@@ -12,19 +14,26 @@ pub struct JobFetcher<S: Storage> {
     sender: Sender<Vec<JobInfo>>,
     job_handler: JobHandle,
     storage: S,
+    pair: Arc<PairCond>,
 }
 
 impl<S: Storage> JobFetcher<S> {
-    pub fn new(worker_manager_id: i64, sender: Sender<Vec<JobInfo>>, storage: S) -> Self {
+    pub fn new(
+        worker_manager_id: i64,
+        sender: Sender<Vec<JobInfo>>,
+        storage: S,
+        pair: Arc<PairCond>,
+    ) -> Self {
         Self {
             worker_manager_id,
             sender,
             job_handler: Default::default(),
             storage,
+            pair,
         }
     }
 
-    pub fn fetch(&self) -> Result<()> {
+    pub fn fetch(&mut self) -> Result<()> {
         let mut page_no = 0;
         let wrapper = self
             .storage
@@ -39,6 +48,7 @@ impl<S: Storage> JobFetcher<S> {
             self.sender
                 .send(v.records)
                 .context("job fetcher send failed.")?;
+            self.pair.notify();
         }
         Ok(())
     }

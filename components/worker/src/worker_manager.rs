@@ -5,7 +5,6 @@
 //! so client will retry this request that send to another server util success unless achieved
 //! the maximum retry numbers and send has failed.
 use super::Result;
-use crate::executor::Executor;
 use crate::job_fetcher::JobFetcher;
 use crate::Worker;
 use crossbeam::atomic::AtomicCell;
@@ -23,6 +22,8 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::atomic::Ordering::SeqCst;
 use std::time::Duration;
+use fastjob_components_utils::pair::PairCond;
+use std::sync::Arc;
 
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
@@ -38,7 +39,6 @@ pub struct WorkerManager<S: Storage> {
     sched_pool: SchedPool,
     job_fetcher: JobFetcher<S>,
     storage: S,
-    executor: Executor,
 }
 
 impl<S: Storage> Clone for WorkerManager<S> {
@@ -67,16 +67,22 @@ pub struct WorkerManagerBuilder {
     config: WorkerManagerConfig,
     scope: WorkerManagerScope,
     sender: Sender<Vec<JobInfo>>,
+    pair: Arc<PairCond>,
 }
 
 impl<S: Storage> WorkerManagerBuilder {
-    pub fn builder(config: WorkerManagerConfig, sender: Sender<Vec<JobInfo>>) -> Self {
+    pub fn builder(
+        config: WorkerManagerConfig,
+        sender: Sender<Vec<JobInfo>>,
+        pair: Arc<PairCond>,
+    ) -> Self {
         Self {
             id: 0,
             status: AtomicCell::new(ComponentStatus::Initialized),
             config,
             scope: WorkerManagerScope::EMPTY,
             sender,
+            pair,
         }
     }
 
@@ -100,9 +106,12 @@ impl<S: Storage> WorkerManagerBuilder {
                 WORKER_MANAGER_SCHED_POOL_NUM_SIZE,
                 WORKER_MANAGER_SCHED_POOL_NAME,
             ),
-            job_fetcher: JobFetcher::new(self.id, self.sender, S),
+            job_fetcher: JobFetcher::new(
+                self.id,
+                self.sender.clone(),
+                S,
+                self.pair.clone()),
             storage: S,
-            executor: Executor {},
         }
     }
 }

@@ -1,7 +1,6 @@
 pub mod component;
 pub mod id_generator;
 pub mod pair;
-pub mod plugin;
 pub mod sched_pool;
 pub mod signal;
 pub mod signal_handler;

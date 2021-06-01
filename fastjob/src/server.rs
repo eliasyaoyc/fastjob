@@ -21,6 +21,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Condvar};
 use std::task::{Context, Poll};
 use std::time::Duration;
+use fastjob_components_utils::pair::PairCond;
 
 const GRPC_SERVER: &str = "GRPC-SERVER";
 
@@ -60,8 +61,11 @@ impl Server {
         let channel_args = ChannelBuilder::new(Arc::clone(&env)).build_args();
 
         let (tx, rx) = crossbeam::channel::unbounded();
+
+        let pair = PairCond::new();
+
         // Constructor FastJob service.
-        let fastjob_service = FastJobService::new(tx);
+        let fastjob_service = FastJobService::new(tx, pair);
         fastjob_service.prepare();
 
         let builder = {
@@ -73,8 +77,6 @@ impl Server {
             Either::Left(sb)
         };
 
-        let pair = pair::condvar_pair();
-
         // Constructor Storage.
         let storage = StorageBuilder::builder()
             .config(config.storage_config.clone())
@@ -84,7 +86,7 @@ impl Server {
         let cluster = Cluster::new();
 
         // Constructor Scheduler.
-        let dispatcher = Dispatcher::new(rx, &*pair.clone().0, &*pair.clone().1);
+        let dispatcher = Dispatcher::new(rx, pair.clone());
 
         let components: Vec<Box<dyn Component>> =
             vec![Box::new(storage), Box::new(cluster), Box::new(dispatcher)];

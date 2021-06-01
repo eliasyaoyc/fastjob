@@ -11,7 +11,6 @@ use crossbeam::channel::Receiver;
 use delay_timer::prelude::*;
 use fastjob_components_storage::model::job_info::{JobInfo, JobTimeExpressionType, JobType};
 use fastjob_components_utils::component::Component;
-use parking_lot::{Condvar, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -24,6 +23,7 @@ use error::Result;
 use snafu::ResultExt;
 use std::convert::TryFrom;
 use std::mem::MaybeUninit;
+use fastjob_components_utils::pair::PairCond;
 
 mod scheduler;
 
@@ -34,25 +34,20 @@ pub struct Dispatcher {
     scheduler: Arc<Scheduler>,
     receiver: Receiver<Vec<JobInfo>>,
     delay_timer: DelayTimer,
-    signal: Mutex<bool>,
-    condvar: Condvar,
-    shutdown: AtomicBool,
+    pair: Arc<PairCond>,
 }
 
 impl Dispatcher {
-    pub fn new(receiver: Receiver<Vec<JobInfo>>, signal: Mutex<bool>, condvar: Condvar) -> Self {
+    pub fn new(receiver: Receiver<Vec<JobInfo>>, pair: Arc<PairCond>) -> Self {
         Self {
             scheduler: Arc::new(Scheduler::new(2)),
             receiver,
             delay_timer: DelayTimerBuilder::default().enable_status_report().build(),
-            signal,
-            condvar,
-            shutdown: AtomicBool::new(false),
+            pair,
         }
     }
 
     fn dispatcher(&self) {
-        let mut started = self.signal.lock();
         loop {
             if self.shutdown.load(Ordering::Relaxed) {
                 break;
@@ -76,21 +71,15 @@ impl Dispatcher {
                 }
                 Err(_) => {
                     warn!("scheduler dispatcher timeout recv, need to sleep.");
-                    self.condvar.wait(&mut started);
+                    self.pair.wait();
                 }
             }
         }
     }
 
-    fn wakeup_immediate(&mut self) {
-        let signal = self.signal.lock();
-        *signal = true;
-        self.condvar.notify_all();
-    }
-
     pub fn filter_task_record_id<P>(&self, predicate: P) -> Option<i64>
-    where
-        P: FnMut(&PublicEvent) -> bool,
+        where
+            P: FnMut(&PublicEvent) -> bool,
     {
         let mut public_events = Vec::<PublicEvent>::new();
 
@@ -116,8 +105,8 @@ impl Dispatcher {
 }
 
 pub(crate) fn build_task<F>(job: &mut JobInfo) -> Option<Task>
-where
-    F: Fn(TaskContext) -> Box<dyn DelayTaskHandler> + 'static + Send + Sync,
+    where
+        F: Fn(TaskContext) -> Box<dyn DelayTaskHandler> + 'static + Send + Sync,
 {
     let body = match JobType::try_from(job.processor_type.unwrap()) {
         Some(JobType::Shell) => unblock_process_task_fn(job.processor_info.into()),
@@ -159,6 +148,6 @@ impl Component for Dispatcher {
 
     fn stop(&mut self) {
         self.shutdown.store(true, Ordering::Relaxed);
-        self.wakeup_immediate();
+        self.pair.notify();
     }
 }
