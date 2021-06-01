@@ -20,19 +20,18 @@ const GRPC_RESPONSE_CODE: u64 = 200;
 pub struct Service<S: Storage> {
     // Manager all tasks that belongs itself. Note that this manager collection includes all the
     // workload  and server itself that are registered with the server,so the collection's key is server id
-    work_mgrs: HashMap<u64, WorkerManager<S>>,
+    work_mgr: WorkerManager<S>,
     storage: Arc<S>,
-    sender: Sender<Vec<JobInfo>>,
-    pair: Arc<PairCond>,
 }
 
 impl<S: Storage> Service<S> {
     pub fn new(sender: Sender<Vec<JobInfo>>, pair: Arc<PairCond>) -> Self {
         Self {
-            work_mgrs: HashMap::new(),
+            work_mgr: WorkerManagerBuilder::builder(req.get_workerManagerConfig().clone(), sender, pair)
+                .id(req.get_workerManagerId())
+                .scope(req.get_workerManagerScope())
+                .build(),
             storage: Arc::new(S),
-            sender,
-            pair,
         }
     }
 
@@ -74,7 +73,6 @@ impl<S: Storage> FastJob for Service<S> {
 
             // Start worker manager.
             // todo. `Result` needs to be added to determine whether the execution was successful.
-            worker_mgr.prepare();
             worker_mgr.start();
             self.work_mgrs.insert(key, worker_mgr);
         }

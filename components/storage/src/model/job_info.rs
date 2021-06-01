@@ -22,10 +22,18 @@ pub enum JobTimeExpressionType {
     FixDelay = 4,
 }
 
+#[derive(TryFromPrimitive)]
+#[repr(usize)]
+pub enum JobStatus {
+    Running = 1,
+    Stop = 2,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct JobInfo {
     pub id: Option<u64>,
     pub app_id: Option<u64>,
+    /// deprecated
     pub concurrency: Option<u32>,
     /// Specifies the machine to run, empty represents unlimited,
     /// non-empty will only use one of the machines to run (multi-value comma split)
@@ -45,7 +53,6 @@ pub struct JobInfo {
     pub job_name: Option<String>,
     pub job_params: Option<String>,
     pub lifecycle: Option<String>,
-    /// deprecated
     pub max_instance_num: Option<usize>,
     /// The maximum worker numbers, just scope for the execution of mapreduce.
     pub max_worker_count: Option<usize>,
@@ -68,6 +75,16 @@ pub struct JobInfo {
     pub time_expression: Option<String>,
     /// Time expression type（CRON/API/FIX_RATE/FIX_DELAY）
     pub time_expression_type: Option<usize>,
+}
+
+impl JobInfo {
+    pub fn is_running(&self) -> bool {
+        self.status.unwrap() == 1
+    }
+
+    pub fn allow_add_instance(&self, current_siz: usize) -> bool {
+        current_siz < self.max_instance_num.unwrap()
+    }
 }
 
 impl CRUDTable for JobInfo {

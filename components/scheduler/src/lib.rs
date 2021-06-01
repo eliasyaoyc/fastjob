@@ -7,15 +7,14 @@
 //!
 //! Dispatcher runs a single-thread event loop, but task execution are delegated to Scheduler.
 use crate::scheduler::Scheduler;
-use crossbeam::channel::Receiver;
+use crossbeam::channel::{Receiver, Sender};
 use delay_timer::prelude::*;
-use fastjob_components_storage::model::job_info::{JobInfo, JobTimeExpressionType, JobType};
+use fastjob_components_storage::model::job_info::{JobInfo, JobTimeExpressionType, JobType, JobStatus};
 use fastjob_components_utils::component::Component;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-mod algo;
 mod error;
 
 use delay_timer::prelude::{unblock_process_task_fn, DelayTaskHandler};
@@ -35,19 +34,26 @@ pub struct Dispatcher {
     receiver: Receiver<Vec<JobInfo>>,
     delay_timer: DelayTimer,
     pair: Arc<PairCond>,
+    sender: Sender<JobInfo>,
 }
 
 impl Dispatcher {
-    pub fn new(receiver: Receiver<Vec<JobInfo>>, pair: Arc<PairCond>) -> Self {
+    pub fn new(
+        receiver: Receiver<Vec<JobInfo>>,
+        pair: Arc<PairCond>,
+        sender: Sender<JobInfo>,
+    ) -> Self {
         Self {
             scheduler: Arc::new(Scheduler::new(2)),
             receiver,
             delay_timer: DelayTimerBuilder::default().enable_status_report().build(),
             pair,
+            sender,
         }
     }
 
-    fn dispatcher(&self) {
+    pub fn dispatcher(&self) {
+        info!("Dispatcher start.");
         loop {
             if self.shutdown.load(Ordering::Relaxed) {
                 break;
@@ -60,7 +66,7 @@ impl Dispatcher {
                 Ok(jobs) => {
                     if jobs.is_empty() {
                         warn!("scheduler dispatcher recv empty, need to sleep.");
-                        self.condvar.wait(&mut started);
+                        self.pair.wait();
                     } else {
                         jobs.iter_mut().map(|job| {
                             if let Some(task) = self::build_task(job) {
@@ -102,52 +108,50 @@ impl Dispatcher {
     pub fn remove_task(&self, task_id: u64) -> Result<()> {
         self.delay_timer.remove_task(task_id).context("")
     }
-}
 
-pub(crate) fn build_task<F>(job: &mut JobInfo) -> Option<Task>
-    where
-        F: Fn(TaskContext) -> Box<dyn DelayTaskHandler> + 'static + Send + Sync,
-{
-    let body = match JobType::try_from(job.processor_type.unwrap()) {
-        Some(JobType::Shell) => unblock_process_task_fn(job.processor_info.into()),
-        Some(JobType::Java) => {
-            create_async_fn_body!({})
-        }
-        None => {
-            error!("Unknown atomic number: {}", job.processor_type.unwrap());
+    pub(crate) fn build_task<F>(&self, job: &mut JobInfo) -> Option<Task>
+        where
+            F: Fn(TaskContext) -> Box<dyn DelayTaskHandler> + 'static + Send + Sync,
+    {
+        if !job.is_running() {
             return None;
         }
-    };
 
-    let frequency = match JobTimeExpressionType::try_from(job.time_expression_type.unwrap()) {
-        Some(_) => CandyFrequency::Once(CandyCronStr("0/1 * * * * * *".to_string())),
-        Some(JobTimeExpressionType::CRON) => {
-            CandyFrequency::Repeated(CandyCronStr(job.time_expression.unwrap()))
-        }
-        None => {
-            error!("Unknown atomic number: {}", job.processor_type.unwrap());
-            return None;
-        }
-    };
+        let body = match JobType::try_from(job.processor_type.unwrap()) {
+            Some(_) => {
+                create_async_fn_body!({
+                    self.sender.send(job);
+                })
+            }
+            None => {
+                error!("Unknown atomic number: {}", job.processor_type.unwrap());
+                return None;
+            }
+        };
 
-    let task = TaskBuilder::default()
-        .set_task_id(job.id.unwrap())
-        .set_frequency_by_candy(frequency)
-        .set_maximun_parallel_runable_num(job.concurrency.unwrap_or_else(1) as u64)
-        .spawn(body)
-        .context("")?;
+        let frequency = match JobTimeExpressionType::try_from(job.time_expression_type.unwrap()) {
+            Some(_) => CandyFrequency::Once(CandyCronStr("0/1 * * * * * *".to_string())),
+            Some(JobTimeExpressionType::CRON) => {
+                CandyFrequency::Repeated(CandyCronStr(job.time_expression.unwrap()))
+            }
+            None => {
+                error!("Unknown atomic number: {}", job.processor_type.unwrap());
+                return None;
+            }
+        };
 
-    Some(task)
-}
+        let task = TaskBuilder::default()
+            .set_task_id(job.id.unwrap())
+            .set_frequency_by_candy(frequency)
+            .set_maximun_parallel_runable_num(job.concurrency.unwrap_or_else(1) as u64)
+            .spawn(body)
+            .context("")?;
 
-impl Component for Dispatcher {
-    fn start(&mut self) {
-        info!("startup dispatcher.");
-        self.dispatcher()
+        Some(task)
     }
 
-    fn stop(&mut self) {
-        self.shutdown.store(true, Ordering::Relaxed);
+    pub fn shutdown(&self) {
+        info!("Dispatcher stop.");
         self.pair.notify();
     }
 }

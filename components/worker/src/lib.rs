@@ -1,42 +1,20 @@
+pub use error::Result;
+use std::sync::Arc;
+use grpcio::{EnvBuilder, ChannelBuilder};
+
 mod error;
 mod job_fetcher;
 pub mod worker_manager;
+mod health_checker;
+mod sender;
 
-pub use error::Result;
-
-mod outer {
-    pub mod inner {
-        use snafu::Snafu;
-
-        #[derive(Debug, Snafu)]
-        #[snafu(visibility = "pub(crate)")]
-        pub enum Error {
-            PubCrate {
-                id: i32,
-            },
-            #[snafu(visibility = "pub(in crate::outer)")]
-            PubInPath {
-                id: i32,
-            },
-            #[snafu(visibility)]
-            Private {
-                id: i32,
-            },
-        }
-    }
-
-    #[test]
-    fn can_set_default_visibility() {
-        let _ = self::inner::PubCrate { id: 42 }.build();
-    }
-
-    #[test]
-    fn can_set_visibility() {
-        let _ = self::inner::PubInPath { id: 42 }.build();
-    }
-}
-
-#[test]
-fn can_set_default_visibility() {
-    let _ = self::outer::inner::PubCrate { id: 42 }.build();
+pub fn init_grpc_client(addr: &str) -> Result<::grpcio::Client> {
+    let env = Arc::new(EnvBuilder::new().build());
+    let ch = ChannelBuilder::new(env).connect(addr);
+    let client = FastJobClient::new(ch);
+    Ok(client)
+    // let mut req = HelloRequest::default();
+    // req.set_name("world".to_owned());
+    // let reply = client.say_hello(&req).expect("rpc");
+    // info!("Greeter received: {}", reply.get_message());
 }

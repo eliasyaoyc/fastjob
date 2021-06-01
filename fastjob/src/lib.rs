@@ -1,21 +1,20 @@
-mod app;
-mod rt;
+use std::fmt::Formatter;
+use std::net::{SocketAddr, ToSocketAddrs};
 
 pub use app::Config;
+pub use error::Result;
+use ipnet::IpAdd;
+
+mod app;
+mod rt;
 
 mod config;
 mod error;
 mod services;
 
-pub use error::Result;
-
 mod cluster;
 mod log;
 pub mod server;
-
-use ipnet::IpAdd;
-use std::fmt::Formatter;
-use std::net::{SocketAddr, ToSocketAddrs};
 
 #[macro_use]
 extern crate fastjob_components_log;

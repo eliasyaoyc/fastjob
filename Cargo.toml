@@ -6,7 +6,6 @@ members = [
     "components/scheduler",
     "components/worker",
     "components/metrics",
-    "components/tracing",
     "components/utils",
     "components/storage",
     "components/log",

@@ -59,7 +59,7 @@ impl<S: Storage> JobFetcher<S> {
     }
 
     #[inline]
-    pub fn canceled(&self) {
+    pub fn shutdown(&self) {
         self.job_handler.cancel();
     }
 }

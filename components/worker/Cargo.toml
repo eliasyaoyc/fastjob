@@ -9,10 +9,13 @@ edition = "2018"
 [dependencies]
 crossbeam = "0.8.0"
 tokio = { version = "1", features = ["rt", "time", "net"] }
-cron = "0.9.0"
 snafu = "0.6.10"
-yatp = {git = "https://github.com/tikv/yatp", branch = "master"}
+grpcio = "0.8.0"
+grpcio-health = "0.8.0"
+dashmap = "4.0.2"
+num_cpus = "1"
 fastjob-components-storage = { path = "../storage" }
 fastjob-proto = { git = "https://github.com/eliasyaoyc/fastjob-proto" }
 fastjob-components-log = { path = "../log" }
 fastjob-components-utils = { path = "../utils" }
+fastjob-components-scheduler = { path = "../scheduler" }

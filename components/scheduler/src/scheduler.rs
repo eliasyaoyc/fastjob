@@ -76,7 +76,4 @@ impl Scheduler {
 
     /// Report the current task msg to `WorkerManager`.
     fn report_task_msg(&self) {}
-
-    /// Select the correct scheduling algorithm for task.
-    fn choose_algo(&self) {}
 }
