@@ -13,11 +13,8 @@ use crossbeam::atomic::AtomicCell;
 use crossbeam::channel::{Receiver, Sender};
 use dashmap::DashMap;
 use fastjob::services::health_checker::HealthChecker;
-use fastjob_components_scheduler::Dispatcher;
-use fastjob_components_storage::model::app_info::AppInfo;
-use fastjob_components_storage::model::job_info::JobInfo;
-use fastjob_components_storage::model::lock::Lock;
-use fastjob_components_storage::model::task::Task;
+use fastjob_components_scheduler::Scheduler;
+use fastjob_components_storage::model::{app_info::AppInfo, job_info::JobInfo, lock::Lock};
 use fastjob_components_storage::{BatisError, Storage};
 use fastjob_components_utils::component::{Component, ComponentStatus};
 use fastjob_components_utils::pair::PairCond;
@@ -33,6 +30,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use std::process::id;
 
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
@@ -45,11 +43,10 @@ pub struct WorkerManager<S: Storage> {
     address: String,
     status: AtomicCell<ComponentStatus>,
     sched_pool: SchedPool,
-    job_fetcher: JobFetcher<S>,
-    storage: S,
+    storage: Arc<S>,
     // sender_t: SenderT,
     workers: DashMap<String, Worker>,
-    dispatcher: Dispatcher,
+    scheduler: Scheduler<S>,
 }
 
 impl<S: Storage> Clone for WorkerManager<S> {
@@ -64,34 +61,33 @@ impl<S: Storage> Debug for WorkerManager<S> {
             .field(&self.id)
             .field(&self.status)
             .field(&self.sched_pool)
-            .field(&self.job_fetcher)
             .field(&self.storage)
             // .field(&self.sender_t)
-            .field(&self.dispatcher)
+            .field(&self.scheduler)
             .finish()
     }
 }
 
-pub struct WorkerManagerBuilder {
+pub struct WorkerManagerBuilder<S: Storage> {
     id: i64,
     status: AtomicCell<ComponentStatus>,
     config: WorkerManagerConfig,
-    sender: Sender<Vec<JobInfo>>,
-    pair: Arc<PairCond>,
+    // sender: Sender<Vec<JobInfo>>,
+    // pair: Arc<PairCond>,
 }
 
-impl<S: Storage> WorkerManagerBuilder {
+impl<S: Storage> WorkerManagerBuilder<S> {
     pub fn builder(
         config: WorkerManagerConfig,
-        sender: Sender<Vec<JobInfo>>,
-        pair: Arc<PairCond>,
+        // sender: Sender<Vec<JobInfo>>,
+        // pair: Arc<PairCond>,
     ) -> Self {
         Self {
             id: 0,
             status: AtomicCell::new(ComponentStatus::Initialized),
             config,
-            sender,
-            pair,
+            // sender,
+            // pair,
         }
     }
 
@@ -109,13 +105,13 @@ impl<S: Storage> WorkerManagerBuilder {
                 WORKER_MANAGER_SCHED_POOL_NUM_SIZE,
                 WORKER_MANAGER_SCHED_POOL_NAME,
             ),
-            job_fetcher: JobFetcher::new(self.id, self.sender.clone(), S, self.pair.clone()),
-            storage: S,
+            // job_fetcher: JobFetcher::new(self.id, self.sender.clone(), S, self.pair.clone()),
+            storage: Arc::new(S),
             // sender_t: SenderT::new(
             //     DashMap::default(),
             // ),
             workers: DashMap::default(),
-            dispatcher: Dispatcher::new(),
+            scheduler: Scheduler::new(S),
         }
     }
 }
@@ -127,18 +123,14 @@ impl<S: Storage> Component for WorkerManager<S> {
         // Change status.
         self.status.store(ComponentStatus::Starting);
 
-        self.health_checker.run();
-
-        self.dispatcher.dispatcher();
-
-        // Start fetch job thread.
-        let handler = self.sched_pool.schedule_at_fixed_rate(
-            self.job_fetcher.fetch(),
+        // Start scheduler thread.
+        self.sched_pool.schedule_at_fixed_rate(
+            self.sched(),
             WORKER_MANAGER_FETCH_INIT_TIME,
             WORKER_MANAGER_FETCH_FIXED_TIME,
         );
 
-        self.job_fetcher.set_handler(handler);
+        // self.job_fetcher.set_handler(handler);
 
         self.status.store(ComponentStatus::Running);
     }
@@ -147,11 +139,7 @@ impl<S: Storage> Component for WorkerManager<S> {
         assert_eq!(self.status.load(), ComponentStatus::Running);
         self.status.store(ComponentStatus::Terminating);
 
-        self.job_fetcher.shutdown();
-
-        self.dispatcher.shutdown();
-
-        self.health_checker.shutdown();
+        // self.scheduler.shutdown();
 
         self.status.store(ComponentStatus::Shutdown);
     }
@@ -206,8 +194,8 @@ impl<S: Storage> WorkerManager<S> {
             }
 
             // Server is not available, try server election again, need to lock.
-            let lock = &Lock::new(String::from(app_id), 30000, String::from(current_server));
-            if !lock.lock() {
+            let lock = Lock::new(String::from(app_id), 30000, String::from(current_server));
+            if !self.lock(lock) {
                 std::thread::sleep(Duration::from_millis(500));
             }
 
@@ -249,14 +237,46 @@ impl<S: Storage> WorkerManager<S> {
         false
     }
 
-    /// Manually perform a schedule.
-    pub fn manual_sched(&mut self) -> Result<()> {
-        self.sched()
+    fn lock(&self, lock: Lock) -> bool {
+        let r = self.storage.save(lock);
+        if r.is_ok() {
+            return true;
+        }
+        false
     }
 
-    fn sched(&mut self) -> Result<()> {
+    fn release(&self) {}
+
+    /// Manually perform a schedule.
+    pub fn manual_sched(&mut self) -> Result<()> {
+        self.sched();
         Ok(())
     }
+
+    fn sched(&mut self) {
+        info!("Schedule task start.");
+        let app_ids: Option<Vec<AppInfo>> = self.storage.find_all_by_current_server().context("")?;
+        if app_ids.is_none() {
+            info!("[JobScheduler] current server {} has no app's job to schedule.");
+            return;
+        }
+        let ids: &Vec<&str> = app_ids
+            .unwrap()
+            .iter()
+            .map(|app| app.id)
+            .collect();
+
+        self.clean_useless_worker(ids);
+
+        self.scheduler.schedule_cron_job(ids)?;
+        self.scheduler.schedule_worker_flow(ids)?;
+        self.scheduler.schedule_frequent_job(ids)?;
+
+
+    }
+
+
+    fn clean_useless_worker(&mut self, app_ids: &Vec<&str>) {}
 
     /// Determine if the worker is to be removed.
     #[inline]

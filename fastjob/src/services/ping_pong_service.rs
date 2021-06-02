@@ -6,7 +6,7 @@ use crate::services::GRPC_RESPONSE_CODE;
 pub struct PingPongService {}
 
 impl PingPong for PingPongService {
-    fn ping(
+    fn ping_p(
         &mut self,
         ctx: RpcContext,
         req: Ping,

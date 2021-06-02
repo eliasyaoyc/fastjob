@@ -42,10 +42,4 @@ impl Lock {
             gmt_modified: None,
         }
     }
-
-    pub fn lock(&self) -> bool {
-        true
-    }
-
-    pub fn release(&self) {}
 }

@@ -1,86 +1,108 @@
-//! The dispatcher component is core component that responsible dispatch task to concrete scheduler.
+//! Scheduler which schedules the execution of `Task`. It receives commands from `WorkManager`.
 //!
-//! Below is a flow diagram for a task.
-//! Task -> FastJobServer
-//!                       -> WorkerManager
-//!                                         -> Dispatcher  -> Scheduler
-//!
-//! Dispatcher runs a single-thread event loop, but task execution are delegated to Scheduler.
-use crate::scheduler::Scheduler;
-use crossbeam::channel::{Receiver, Sender};
-use delay_timer::prelude::*;
-use fastjob_components_storage::model::job_info::{JobInfo, JobTimeExpressionType, JobType, JobStatus};
-use fastjob_components_utils::component::Component;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::time::Duration;
-
-mod error;
-
-use delay_timer::prelude::{unblock_process_task_fn, DelayTaskHandler};
-use error::Result;
-use snafu::ResultExt;
+//! Scheduler keeps track of all the running task status and reports to `WorkerManager`.
 use std::convert::TryFrom;
 use std::mem::MaybeUninit;
-use fastjob_components_utils::pair::PairCond;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
-mod scheduler;
+use crossbeam::channel::{Receiver, Sender};
+use delay_timer::prelude::*;
+use delay_timer::prelude::{DelayTaskHandler, unblock_process_task_fn};
+use snafu::ResultExt;
+
+use error::Result;
+use fastjob_components_storage::model::job_info::{JobInfo, JobStatus, JobTimeExpressionType, JobType};
+use fastjob_components_utils::component::Component;
+use fastjob_components_utils::pair::PairCond;
+use fastjob_components_storage::Storage;
+use fastjob_components_storage::model::app_info::AppInfo;
+
+mod error;
+mod dispatch;
+mod instance_status_checker;
 
 #[macro_use]
 extern crate fastjob_components_log;
 
-pub struct Dispatcher {
-    scheduler: Arc<Scheduler>,
-    receiver: Receiver<Vec<JobInfo>>,
+const SCHEDULE_RATE: usize = 15000;
+
+pub struct Scheduler<S: Storage> {
+    // receiver: Receiver<Vec<JobInfo>>,
     delay_timer: DelayTimer,
-    pair: Arc<PairCond>,
-    sender: Sender<JobInfo>,
+    // pair: Arc<PairCond>,
+    // sender: Sender<JobInfo>,
+    storage: S,
 }
 
-impl Dispatcher {
+impl<S: Storage> Scheduler<S> {
     pub fn new(
-        receiver: Receiver<Vec<JobInfo>>,
-        pair: Arc<PairCond>,
-        sender: Sender<JobInfo>,
+        // receiver: Receiver<Vec<JobInfo>>,
+        // sender: Sender<JobInfo>,
+        storage: S,
     ) -> Self {
         Self {
-            scheduler: Arc::new(Scheduler::new(2)),
-            receiver,
+            // receiver,
             delay_timer: DelayTimerBuilder::default().enable_status_report().build(),
-            pair,
-            sender,
+            // pair,
+            // sender,
+            storage,
         }
     }
 
-    pub fn dispatcher(&self) {
-        info!("Dispatcher start.");
-        loop {
-            if self.shutdown.load(Ordering::Relaxed) {
-                break;
-            }
-            match self
-                .receiver
-                .recv_timeout(Duration::from_millis(500))
-                .as_mut()
-            {
-                Ok(jobs) => {
-                    if jobs.is_empty() {
-                        warn!("scheduler dispatcher recv empty, need to sleep.");
-                        self.pair.wait();
-                    } else {
-                        jobs.iter_mut().map(|job| {
-                            if let Some(task) = self::build_task(job) {
-                                self.delay_timer.add_task(task).context("")?;
-                            }
-                        });
-                    }
-                }
-                Err(_) => {
-                    warn!("scheduler dispatcher timeout recv, need to sleep.");
-                    self.pair.wait();
-                }
-            }
+    pub fn schedule(&self) {
+        info!("Schedule task start.");
+        let app_ids: Option<Vec<AppInfo>> = self.storage.find_all_by_current_server().context("")?;
+        if app_ids.is_none() {
+            info!("[JobScheduler] current server {} has no app's job to schedule.");
+            return;
         }
+
+
+        // loop {
+        //     if self.shutdown.load(Ordering::Relaxed) {
+        //         break;
+        //     }
+        //     match self
+        //         .receiver
+        //         .recv_timeout(Duration::from_millis(500))
+        //         .as_mut()
+        //     {
+        //         Ok(jobs) => {
+        //             if jobs.is_empty() {
+        //                 warn!("scheduler dispatcher recv empty, need to sleep.");
+        //                 self.pair.wait();
+        //             } else {
+        //                 jobs.iter_mut().map(|job| {
+        //                     if let Some(task) = self::build_task(job) {
+        //                         self.delay_timer.add_task(task).context("")?;
+        //                     }
+        //                 });
+        //             }
+        //         }
+        //         Err(_) => {
+        //             warn!("scheduler dispatcher timeout recv, need to sleep.");
+        //             self.pair.wait();
+        //         }
+        //     }
+        // }
+    }
+
+    /// Schedule tasks of type CRON expressions.
+    pub fn schedule_cron_job(&self, ids: &Vec<&str>) -> Result<()> {
+        Ok(())
+    }
+
+    /// Schedule second-level task.
+    pub fn schedule_frequent_job(&self, ids: &Vec<&str>) -> Result<()> {
+        Ok(())
+    }
+
+    /// Schedule tasks of type worker-flow.
+    pub fn schedule_worker_flow(&self, ids: &Vec<&str>) -> Result<()> {
+        //todo
+        Ok(())
     }
 
     pub fn filter_task_record_id<P>(&self, predicate: P) -> Option<i64>
@@ -151,7 +173,7 @@ impl Dispatcher {
     }
 
     pub fn shutdown(&self) {
-        info!("Dispatcher stop.");
+        info!("Scheduler stop.");
         self.pair.notify();
     }
 }

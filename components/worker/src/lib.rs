@@ -1,14 +1,15 @@
 use std::sync::Arc;
 
+use dashmap::DashMap;
 use grpcio::{ChannelBuilder, EnvBuilder};
 
 pub use error::Result;
-use dashmap::DashMap;
 
 mod error;
 mod job_fetcher;
 pub mod worker_manager;
 mod sender;
+mod dispatch;
 
 #[macro_use]
 extern crate fastjob_components_log;

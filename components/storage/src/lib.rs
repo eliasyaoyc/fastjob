@@ -76,6 +76,9 @@ pub trait Storage {
             T: CRUDTable;
 
     fn get_wrapper(&self) -> Wrapper;
+
+    fn find_all_by_current_server<T>(&self) -> Result<Option<Vec<T>>>
+        where T: CRUDTable;
 }
 
 pub struct MysqlStorage {
@@ -220,6 +223,12 @@ impl Storage for MysqlStorage {
 
     fn get_wrapper(&self) -> Wrapper {
         Wrapper::new(&self.rb.driver_type().unwrap())
+    }
+
+    fn find_all_by_current_server<T>(&self) -> Result<Option<Vec<T>>>
+        where T: CRUDTable
+    {
+        todo!()
     }
 }
 
