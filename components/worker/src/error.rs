@@ -3,7 +3,20 @@ use snafu::{ResultExt, Snafu};
 pub type Result<T, E = WorkerError> = std::result::Result<T, E>;
 
 #[derive(Snafu)]
-enum WorkerError {}
+#[snafu(visibility = "pub(crate)")]
+pub enum WorkerError {
+    #[sanfu("WorkerManager storage error.")]
+    WorkerStorageError,
+
+    #[sanfu("App name or id {} is not registered, please register the app first.", app_name)]
+    WorkerNotRegistered {
+        app_name_or_id: String,
+    },
+    #[sanfu("server {} lookup failed", server_ip)]
+    LookupFail {
+        server_ip: String,
+    },
+}
 
 
 mod outer {

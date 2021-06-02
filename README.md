@@ -61,6 +61,8 @@ lock-free mind designing it and support group isolation.
 - [ ] support alarm, e.g. dingding etc.
 - [ ] support docker startup.
 - [ ] support admin.
+- [x] java client(internal use).
+- [ ] improve that spontaneous metadata management.(current version through mysql.)
 
 # Example
 

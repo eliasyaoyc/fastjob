@@ -251,12 +251,12 @@ mod tests {
             let mut rb = Rbatis::new();
             //设置 逻辑删除插件
             rb.logic_plugin = Some(Box::new(RbatisLogicDeletePlugin::new("delete_flag")));
-            rb.link("mysql://root:123456@localhost:3306/test")
+            rb.link("mysql://root:yaoyichen52@localhost:3306/neptune")
                 .await
                 .unwrap();
 
-            let w = Wrapper::new(&rb.driver_type().unwrap()).eq("id", "12312");
-            let r: Result<Option<BizActivity>, Error> = rb.fetch_by_wrapper("", &w).await;
+            let w = Wrapper::new(&rb.driver_type().unwrap()).eq("id", "11");
+            let r:  = rb.fetch_by_wrapper("", &w).await;
             if r.is_err() {
                 println!("{}", r.err().unwrap().to_string());
             }

@@ -1,6 +1,5 @@
 use rbatis::crud::{CRUDTable, CRUD};
 use rbatis::utils::string_util::to_snake_name;
-use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;

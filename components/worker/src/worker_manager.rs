@@ -4,14 +4,14 @@
 //! if don't have enough space that will reject task request and respond a full error message.
 //! so client will retry this request that send to another server util success unless achieved
 //! the maximum retry numbers and send has failed.
-use super::Result;
+use super::{Result, error};
 use crate::job_fetcher::JobFetcher;
 use crate::{Worker, init_grpc_client};
 use crossbeam::atomic::AtomicCell;
 use crossbeam::channel::{Receiver, Sender};
 use fastjob_components_storage::model::job_info::JobInfo;
 use fastjob_components_storage::model::task::Task;
-use fastjob_components_storage::Storage;
+use fastjob_components_storage::{Storage, BatisError};
 use fastjob_components_utils::component::{Component, ComponentStatus};
 use fastjob_components_utils::sched_pool::{JobHandle, SchedPool};
 use fastjob_components_utils::timing_wheel::TimingWheel;
@@ -21,31 +21,35 @@ use fastjob_proto::fastjob::{
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::atomic::Ordering::SeqCst;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use fastjob_components_utils::pair::PairCond;
 use std::sync::Arc;
 use dashmap::DashMap;
 use crate::sender::Sender as SenderT;
 use fastjob_components_scheduler::Dispatcher;
-use crate::health_checker::HealthChecker;
+use fastjob::services::health_checker::HealthChecker;
+use fastjob_components_storage::model::app_info::AppInfo;
+use fastjob_components_storage::model::lock::Lock;
+use snafu::ResultExt;
+use fastjob_components_utils::time::duration_to_ms;
+use chrono::Local;
 
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
 const WORKER_MANAGER_FETCH_INIT_TIME: Duration = Duration::from_secs(2);
 const WORKER_MANAGER_FETCH_FIXED_TIME: Duration = Duration::from_secs(5);
+const RETRY_TIMES: u32 = 3;
 
 pub struct WorkerManager<S: Storage> {
     id: i64,
+    address: String,
     status: AtomicCell<ComponentStatus>,
-    config: WorkerManagerConfig,
-    scope: WorkerManagerScope,
     sched_pool: SchedPool,
     job_fetcher: JobFetcher<S>,
     storage: S,
     // sender_t: SenderT,
-    workers: DashMap<String, ::grpcio::Client>,
+    workers: DashMap<String, Worker>,
     dispatcher: Dispatcher,
-    health_checker: HealthChecker,
 }
 
 impl<S: Storage> Clone for WorkerManager<S> {
@@ -59,8 +63,6 @@ impl<S: Storage> Debug for WorkerManager<S> {
         f.debug_tuple("")
             .field(&self.id)
             .field(&self.status)
-            .field(&self.config)
-            .field(&self.scope)
             .field(&self.sched_pool)
             .field(&self.job_fetcher)
             .field(&self.storage)
@@ -74,7 +76,6 @@ pub struct WorkerManagerBuilder {
     id: i64,
     status: AtomicCell<ComponentStatus>,
     config: WorkerManagerConfig,
-    scope: WorkerManagerScope,
     sender: Sender<Vec<JobInfo>>,
     pair: Arc<PairCond>,
 }
@@ -89,7 +90,6 @@ impl<S: Storage> WorkerManagerBuilder {
             id: 0,
             status: AtomicCell::new(ComponentStatus::Initialized),
             config,
-            scope: WorkerManagerScope::EMPTY,
             sender,
             pair,
         }
@@ -100,17 +100,11 @@ impl<S: Storage> WorkerManagerBuilder {
         self
     }
 
-    pub fn scope(mut self, scope: WorkerManagerScope) -> Self {
-        self.scope = scope;
-        self
-    }
-
     pub fn build(self) -> WorkerManager<S> {
         WorkerManager {
             id: self.id,
+            address: "".to_string(),
             status: AtomicCell::new(ComponentStatus::Ready),
-            config: self.config,
-            scope: self.scope,
             sched_pool: SchedPool::new(
                 WORKER_MANAGER_SCHED_POOL_NUM_SIZE,
                 WORKER_MANAGER_SCHED_POOL_NAME,
@@ -126,7 +120,6 @@ impl<S: Storage> WorkerManagerBuilder {
             // ),
             workers: DashMap::default(),
             dispatcher: Dispatcher::new(),
-            health_checker: HealthChecker::new(),
         }
     }
 }
@@ -172,17 +165,82 @@ impl<S: Storage> Component for WorkerManager<S> {
 impl<S: Storage> WorkerManager<S> {
     /// Connect to worker grpc client.
     pub fn connect(&self, addr: &str) -> Result<()> {
-        let client = init_grpc_client(addr)?;
-        self.workers.insert(addr.into(), client);
+        self.workers.insert(addr.into(), Worker::build(addr))?;
         Ok(())
     }
 
-    pub fn register_task(&mut self, task: Task) -> Result<()> {
-        Ok(())
+    /// Validate worker is effective when worker init.
+    pub fn validate_worker(&self, app_name: &str) -> Result<()> {
+        let wrapper = self
+            .storage
+            .get_wrapper()
+            .eq("app_name", app_name);
+        let rs: std::result::Result<AppInfo, BatisError> = self.storage.fetch(&wrapper);
+
+        if rs.is_ok() {
+            return Ok(());
+        }
+
+        Err(error::WorkerNotRegistered { app_name_or_id: String::from(app_name) })
     }
 
-    pub fn unregister_task(&mut self, task_id: &u64) -> Result<()> {
-        Ok(())
+    /// Select the appropriate server according to the appName sent by the worker
+    /// And check it whether alive,if dead the current service tries to usurp the throne.
+    ///
+    /// Thread Safety: Distributed-Lock.
+    pub fn lookup(&self, current_server: &str, app_id: u64) -> Result<&str> {
+        let cache = &Vec::<String>::new();
+        if self.address.eq(current_server) {
+            return Ok(current_server);
+        }
+        let wrapper = &self.storage.get_wrapper().eq("id", app_id);
+        for _ in 0..RETRY_TIMES {
+            let rs: Option<AppInfo> = self.storage
+                .fetch(wrapper)
+                .context(error::WorkerStorageError)?;
+
+            if rs.is_none() {
+                return Err(error::WorkerNotRegistered { app_name_or_id: app_id.to_string() });
+            }
+            let name = rs.as_ref().unwrap().app_name.unwrap();
+            let origin_server = rs.as_ref().unwrap().current_server.unwrap().as_str();
+            if self.is_active(origin_server, cache) {
+                return Ok(origin_server);
+            }
+
+            // Server is not available, try server election again, need to lock.
+            let lock = &Lock::new(String::from(app_id), 30000, String::from(current_server));
+            if !lock.lock() {
+                std::thread::sleep(Duration::from_millis(500));
+            }
+
+            // It is possible that a machine has already completed the Server election and needs to be judged again.
+            let mut rs: Option<AppInfo> = self.storage
+                .fetch(wrapper)
+                .context(error::WorkerStorageError)?;
+            let cur = rs.as_ref().unwrap().current_server.unwrap().as_str();
+            if self.is_active(cur, cache) {
+                return Ok(cur);
+            }
+            // Usurpation, native as current server.
+            rs.take().unwrap().current_server = Some(current_server.to_string());
+            rs.take().unwrap().gmt_modified = Some(Local::now().timestamp_millis());
+            self.storage.save(rs.unwrap());
+            info!("[Election] server {} become the new server fo appId {}", current_server.to_string(), app_id)
+        }
+        Err(error::LookupFail { server_ip: self.address.clone() })
+    }
+
+    fn is_active(&self,
+                 target_server: &str,
+                 cache: &Vec<String>,
+    ) -> bool
+    {
+        if cache.contains(&target_server.to_string()) {
+            return false;
+        }
+        // send hello request to target server.
+        true
     }
 
     /// Manually perform a schedule.
@@ -200,12 +258,6 @@ impl<S: Storage> WorkerManager<S> {
         true
     }
 
-    /// Determine whether the current `WorkerManager` is service-side.
-    #[inline]
-    fn is_server_side(&self) -> bool {
-        self.scope == ServerSide
-    }
-
     /// Returns the status of `WorkerManager`.
     #[inline]
     pub fn get_status(&self) -> ComponentStatus {
@@ -214,6 +266,4 @@ impl<S: Storage> WorkerManager<S> {
 }
 
 #[cfg(test)]
-mod tests{
-
-}
+mod tests {}

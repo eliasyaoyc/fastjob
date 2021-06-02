@@ -4,6 +4,7 @@ use rbatis::crud::{CRUDTable, CRUD};
 use rbatis::plugin::page::{Page, PageRequest};
 use rbatis::rbatis::{Rbatis, RbatisOption};
 pub use rbatis::wrapper::Wrapper;
+pub use rbatis::Error as BatisError;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::sync::Arc;
@@ -47,32 +48,32 @@ impl Default for StorageConfig {
 
 pub trait Storage {
     fn save<T>(&self, t: T) -> Result<()>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn save_batch<T>(&self, t: &[T]) -> Result<()>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn delete<T>(&self, id: &T::IdType) -> Result<u64>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn delete_batch<T>(&self, ids: &[T::IdType]) -> Result<()>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn fetch<T>(&self, w: &Wrapper) -> Result<T>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn fetch_page<T>(&self, w: &Wrapper, page_no: u64, page_size: u64) -> Result<Page<T>>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn update<T>(&self, models: &mut [T]) -> Result<()>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn get_wrapper(&self) -> Wrapper;
 }
@@ -126,8 +127,8 @@ impl Component for MysqlStorage {
 
 impl Storage for MysqlStorage {
     fn save<'a, T>(&self, model: T) -> Result<()>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -139,8 +140,8 @@ impl Storage for MysqlStorage {
     }
 
     fn save_batch<T>(&self, model: &[T]) -> Result<()>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -152,8 +153,8 @@ impl Storage for MysqlStorage {
     }
 
     fn delete<T>(&self, id: &T::IdType) -> Result<u64>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -165,8 +166,8 @@ impl Storage for MysqlStorage {
     }
 
     fn delete_batch<T>(&self, ids: &[<T as CRUDTable>::IdType]) -> Result<()>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -178,8 +179,8 @@ impl Storage for MysqlStorage {
     }
 
     fn fetch<T>(&self, w: &Wrapper) -> Result<T>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -191,8 +192,8 @@ impl Storage for MysqlStorage {
     }
 
     fn fetch_page<T>(&self, w: &Wrapper, page_no: u64, page_size: u64) -> Result<Page<T>>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -205,8 +206,8 @@ impl Storage for MysqlStorage {
     }
 
     fn update<T>(&self, modes: &mut [T]) -> Result<()>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -251,59 +252,59 @@ mod tests {
     use serde::Deserialize;
     use serde::Serialize;
 
-    #[derive(Serialize, Deserialize, Clone, Debug)]
-    struct BizActivity {
-        pub id: Option<String>,
-        pub name: Option<String>,
-        pub pc_link: Option<String>,
-        pub h5_link: Option<String>,
-        pub pc_banner_img: Option<String>,
-        pub h5_banner_img: Option<String>,
-        pub sort: Option<String>,
-        pub status: Option<i32>,
-        pub remark: Option<String>,
-        pub create_time: Option<String>,
-        pub version: Option<i32>,
-        pub delete_flag: Option<i32>,
-    }
-
-    impl CRUDTable for BizActivity {
-        type IdType = String;
-
-        fn get_id(&self) -> Option<&Self::IdType> {
-            self.id.as_ref()
-        }
-    }
-
-    #[test]
-    fn test_save() {
-        let config = StorageConfig {
-            addr: "localhost:3306".to_string(),
-            username: "root".to_string(),
-            password: "yaoyichen52".to_string(),
-            database: "neptune".to_string(),
-            max_connections: 20,
-            min_connections: 5,
-            connect_timeout: 5,
-            idle_timeout: 5,
-        };
-        let mut storage = StorageBuilder::builder().config(config).build();
-
-        let activity = BizActivity {
-            id: Some("12312".to_string()),
-            name: Some("111".to_string()),
-            pc_link: None,
-            h5_link: None,
-            pc_banner_img: None,
-            h5_banner_img: None,
-            sort: Some("0".to_string()),
-            status: Some(1),
-            remark: None,
-            create_time: Some("2020-02-09 00:00:00".to_string()),
-            version: Some(1),
-            delete_flag: Some(1),
-        };
-        storage.start();
-        storage.save(&activity);
-    }
+    // #[derive(Serialize, Deserialize, Clone, Debug)]
+    // struct BizActivity {
+    //     pub id: Option<String>,
+    //     pub name: Option<String>,
+    //     pub pc_link: Option<String>,
+    //     pub h5_link: Option<String>,
+    //     pub pc_banner_img: Option<String>,
+    //     pub h5_banner_img: Option<String>,
+    //     pub sort: Option<String>,
+    //     pub status: Option<i32>,
+    //     pub remark: Option<String>,
+    //     pub create_time: Option<String>,
+    //     pub version: Option<i32>,
+    //     pub delete_flag: Option<i32>,
+    // }
+    //
+    // impl CRUDTable for BizActivity {
+    //     type IdType = String;
+    //
+    //     fn get_id(&self) -> Option<&Self::IdType> {
+    //         self.id.as_ref()
+    //     }
+    // }
+    //
+    // #[test]
+    // fn test_save() {
+    //     let config = StorageConfig {
+    //         addr: "localhost:3306".to_string(),
+    //         username: "root".to_string(),
+    //         password: "yaoyichen52".to_string(),
+    //         database: "neptune".to_string(),
+    //         max_connections: 20,
+    //         min_connections: 5,
+    //         connect_timeout: 5,
+    //         idle_timeout: 5,
+    //     };
+    //     let mut storage = StorageBuilder::builder().config(config).build();
+    //
+    //     let activity = BizActivity {
+    //         id: Some("12312".to_string()),
+    //         name: Some("111".to_string()),
+    //         pc_link: None,
+    //         h5_link: None,
+    //         pc_banner_img: None,
+    //         h5_banner_img: None,
+    //         sort: Some("0".to_string()),
+    //         status: Some(1),
+    //         remark: None,
+    //         create_time: Some("2020-02-09 00:00:00".to_string()),
+    //         version: Some(1),
+    //         delete_flag: Some(1),
+    //     };
+    //     storage.start();
+    //     storage.save(&activity);
+    // }
 }

@@ -1,10 +1,9 @@
 use crate::model::job_info::JobType::{Java, Shell};
 use rbatis::crud::{CRUDTable, CRUD};
-use rbatis::utils::string_util::to_snake_name;
-use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;
+use num_enum::TryFromPrimitive;
 
 #[derive(TryFromPrimitive)]
 #[repr(usize)]
