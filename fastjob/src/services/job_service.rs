@@ -12,8 +12,7 @@ use std::collections::HashMap;
 use std::mem::MaybeUninit;
 use std::sync::Arc;
 use fastjob_components_utils::pair::PairCond;
-
-const GRPC_RESPONSE_CODE: u64 = 200;
+use crate::services::GRPC_RESPONSE_CODE;
 
 /// Service handles the RPC messages for the `FastJob` service.
 #[derive(Clone)]
