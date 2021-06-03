@@ -53,6 +53,7 @@ lock-free mind designing it and support group isolation.
 
 # To Do List
 
+- [x] lock-free scheduler.
 - [ ] support map-reduce.
 - [ ] container task.
 - [ ] task tag.
