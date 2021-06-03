@@ -261,3 +261,23 @@ impl Sub<Instant> for Instant {
         self.duration_since(other)
     }
 }
+
+
+#[cfg(test)]
+mod tests{
+    use std::time::{Instant, Duration};
+    use std::ops::Sub;
+
+    #[test]
+    fn t_elapsed() {
+        let instant = Instant::now();
+        std::thread::sleep(Duration::from_millis(500));
+        let cost1 = instant.elapsed().as_millis();
+        std::thread::sleep(Duration::from_millis(500));
+        let cost2 = instant.elapsed().as_millis().sub(cost1);
+        std::thread::sleep(Duration::from_millis(500));
+        let cost3 = instant.elapsed().as_millis().sub(cost1 + cost2);
+
+        println!("{},{},{}", cost1, cost2, cost3)
+    }
+}

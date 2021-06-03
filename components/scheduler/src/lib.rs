@@ -92,17 +92,17 @@ impl<S: Storage> Scheduler<S> {
     }
 
     /// Schedule tasks of type CRON expressions.
-    pub fn schedule_cron_job(&self, ids: &Vec<&str>) -> Result<()> {
+    pub fn schedule_cron_job(&self, ids: Vec<&str>) -> Result<()> {
         Ok(())
     }
 
     /// Schedule second-level task.
-    pub fn schedule_frequent_job(&self, ids: &Vec<&str>) -> Result<()> {
+    pub fn schedule_frequent_job(&self, ids: Vec<&str>) -> Result<()> {
         Ok(())
     }
 
     /// Schedule tasks of type worker-flow.
-    pub fn schedule_worker_flow(&self, ids: &Vec<&str>) -> Result<()> {
+    pub fn schedule_worker_flow(&self, ids: Vec<&str>) -> Result<()> {
         //todo
         Ok(())
     }

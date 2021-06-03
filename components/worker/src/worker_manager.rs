@@ -34,7 +34,7 @@ use std::ops::Sub;
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
 const WORKER_MANAGER_FETCH_INIT_TIME: Duration = Duration::from_secs(2);
-const WORKER_MANAGER_FETCH_FIXED_TIME: Duration = Duration::from_secs(5);
+const WORKER_MANAGER_FETCH_FIXED_TIME: Duration = Duration::from_millis(10000);
 const RETRY_TIMES: u32 = 3;
 
 pub struct WorkerManager<S: Storage> {
@@ -43,8 +43,7 @@ pub struct WorkerManager<S: Storage> {
     status: AtomicCell<ComponentStatus>,
     sched_pool: SchedPool,
     storage: Arc<S>,
-    // sender_t: SenderT,
-    workers: DashMap<String, Worker>,
+    workers: DashMap<str, Worker>,
     scheduler: Scheduler<S>,
 }
 
@@ -61,7 +60,6 @@ impl<S: Storage> Debug for WorkerManager<S> {
             .field(&self.status)
             .field(&self.sched_pool)
             .field(&self.storage)
-            // .field(&self.sender_t)
             .field(&self.scheduler)
             .finish()
     }
@@ -71,22 +69,19 @@ pub struct WorkerManagerBuilder<S: Storage> {
     id: i64,
     status: AtomicCell<ComponentStatus>,
     config: WorkerManagerConfig,
-    // sender: Sender<Vec<JobInfo>>,
-    // pair: Arc<PairCond>,
+    storage: Arc<S>,
 }
 
 impl<S: Storage> WorkerManagerBuilder<S> {
     pub fn builder(
         config: WorkerManagerConfig,
-        // sender: Sender<Vec<JobInfo>>,
-        // pair: Arc<PairCond>,
+        storage: S,
     ) -> Self {
         Self {
             id: 0,
             status: AtomicCell::new(ComponentStatus::Initialized),
             config,
-            // sender,
-            // pair,
+            storage: Arc::new(storage),
         }
     }
 
@@ -104,13 +99,9 @@ impl<S: Storage> WorkerManagerBuilder<S> {
                 WORKER_MANAGER_SCHED_POOL_NUM_SIZE,
                 WORKER_MANAGER_SCHED_POOL_NAME,
             ),
-            // job_fetcher: JobFetcher::new(self.id, self.sender.clone(), S, self.pair.clone()),
-            storage: Arc::new(S),
-            // sender_t: SenderT::new(
-            //     DashMap::default(),
-            // ),
+            storage: self.storage,
             workers: DashMap::default(),
-            scheduler: Scheduler::new(S),
+            scheduler: Scheduler::new(self.storage.clone()),
         }
     }
 }
@@ -128,8 +119,6 @@ impl<S: Storage> Component for WorkerManager<S> {
             WORKER_MANAGER_FETCH_INIT_TIME,
             WORKER_MANAGER_FETCH_FIXED_TIME,
         );
-
-        // self.job_fetcher.set_handler(handler);
 
         self.status.store(ComponentStatus::Running);
     }
@@ -228,11 +217,11 @@ impl<S: Storage> WorkerManager<S> {
         }
         // send hello request to target server.
         let client = init_grpc_client(target_server);
-        // let mut req = Ping::default();
-        // let reply = client.ping(&req).expect("Ping failed");
-        // if reply.get_code() == 200 {
-        //     return true;
-        // }
+        let mut req = Ping::default();
+        let reply = client.ping(&req).expect("Ping failed");
+        if reply.get_code() == 200 {
+            return true;
+        }
         false
     }
 
@@ -260,24 +249,38 @@ impl<S: Storage> WorkerManager<S> {
             info!("[JobScheduler] current server has no app's job to schedule.");
             return;
         }
-        let ids: &Vec<&str> = app_ids
+        let ids: Vec<&str> = app_ids
             .unwrap()
             .iter()
             .map(|app| app.id)
             .collect();
 
-        self.clean_useless_worker(ids);
+        self.clean_useless_worker(ids.clone());
 
-        self.scheduler.schedule_cron_job(ids)?;
+        self.scheduler.schedule_cron_job(ids.clone())?;
         let cron_cost = instant.elapsed();
-        self.scheduler.schedule_worker_flow(ids)?;
+
+        self.scheduler.schedule_worker_flow(ids.clone())?;
         let worker_flow_cost = instant.elapsed().sub(cron_cost);
+
         self.scheduler.schedule_frequent_job(ids)?;
         let frequent_cost = instant.elapsed().sub(worker_flow_cost + cron_cost);
+
+        info!("[JobScheduler] cron schedule cost: {}, workflow schedule cost: {}, frequent schedule: {}", cron_cost, worker_flow_cost, frequent_cost);
+
+        let total_cost = instant.elapsed().as_millis();
+        if total_cost > WORKER_MANAGER_FETCH_FIXED_TIME.as_millis() {
+            warn!("[JobScheduler] The database query is using too much time {} ms", total_cost);
+        }
     }
 
 
-    fn clean_useless_worker(&mut self, app_ids: &Vec<&str>) {}
+    /// Clean the useless workers.
+    fn clean_useless_worker(&mut self, app_ids: Vec<&str>) {
+        self.workers
+            .iter()
+            .filter(|worker| { app_ids.contains(&worker.key()) });
+    }
 
     /// Determine if the worker is to be removed.
     #[inline]
@@ -294,19 +297,6 @@ impl<S: Storage> WorkerManager<S> {
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Instant, Duration};
-    use std::ops::Sub;
-
     #[test]
-    fn t_elapsed() {
-        let instant = Instant::now();
-        std::thread::sleep(Duration::from_millis(500));
-        let cost1 = instant.elapsed().as_millis();
-        std::thread::sleep(Duration::from_millis(500));
-        let cost2 = instant.elapsed().as_millis().sub(cost1);
-        std::thread::sleep(Duration::from_millis(500));
-        let cost3 = instant.elapsed().as_millis().sub(cost1 + cost2);
-
-        println!("{},{},{}", cost1, cost2, cost3)
-    }
+    fn t_sched() {}
 }
