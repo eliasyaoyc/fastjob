@@ -3,25 +3,26 @@ use rbatis::crud::{CRUDTable, CRUD};
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;
-use num_enum::TryFromPrimitive;
+use num_enum::{TryFromPrimitive, IntoPrimitive};
 
-#[derive(TryFromPrimitive)]
+#[derive(TryFromPrimitive, IntoPrimitive)]
 #[repr(usize)]
 pub enum JobType {
     Java = 1,
     Shell = 2,
 }
 
-#[derive(TryFromPrimitive)]
+#[derive(TryFromPrimitive, IntoPrimitive)]
 #[repr(usize)]
 pub enum JobTimeExpressionType {
-    CRON = 1,
-    API = 2,
+    API = 1,
+    CRON = 2,
     FixRate = 3,
     FixDelay = 4,
+    WORKFLOW = 5,
 }
 
-#[derive(TryFromPrimitive)]
+#[derive(TryFromPrimitive, IntoPrimitive)]
 #[repr(usize)]
 pub enum JobStatus {
     Running = 1,
@@ -61,7 +62,7 @@ pub struct JobInfo {
     pub min_disk_space: Option<f64>,
     /// Minimum memory space, unit GB, 0 represents unlimited
     pub min_memory_space: Option<f64>,
-    pub next_trigger_time: Option<u64>,
+    pub next_trigger_time: Option<i64>,
     /// Alarm list of user ids, multi-valued comma-separated.
     pub notify_user_ids: Option<String>,
     pub processor_info: Option<String>,
@@ -77,12 +78,24 @@ pub struct JobInfo {
 }
 
 impl JobInfo {
-    pub fn is_running(&self) -> bool {
-        self.status.unwrap() == 1
+    #[inline]
+    pub fn get_id(&self) -> Option<u64> {
+        self.id.clone()
     }
 
-    pub fn allow_add_instance(&self, current_siz: usize) -> bool {
-        current_siz < self.max_instance_num.unwrap()
+    #[inline]
+    pub fn get_app_id(&self) -> Option<u64> {
+        self.app_id.clone()
+    }
+
+    #[inline]
+    pub fn get_job_params(&self) -> Option<String> {
+        self.job_params.clone()
+    }
+
+    #[inline]
+    pub fn get_next_trigger_time(&self) -> Option<i64> {
+        self.next_trigger_time.clone()
     }
 }
 

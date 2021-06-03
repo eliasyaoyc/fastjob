@@ -1,4 +1,5 @@
 use snafu::{ResultExt, Snafu};
+use fastjob_components_scheduler::error::SchedError;
 
 pub type Result<T, E = WorkerError> = std::result::Result<T, E>;
 
@@ -16,5 +17,10 @@ pub enum WorkerError {
     #[snafu(display("server {} lookup failed", server_ip))]
     LookupFail {
         server_ip: String,
+    },
+
+    #[snafu(display("WorkerManager scheduler encounter error: {}", job_id, source))]
+    SchedulerFailed {
+        source: SchedError,
     },
 }

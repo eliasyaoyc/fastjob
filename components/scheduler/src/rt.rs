@@ -1,8 +1,6 @@
 use tokio::runtime::{Builder, Runtime};
-use tracing::{info, warn};
 
-#[cfg(feature = "multicore")]
-pub(crate) fn build() -> Runtime {
+pub fn build() -> Runtime {
     let mut cores = std::env::var("FASTJOB_CORES")
         .ok()
         .and_then(|v| {
@@ -45,14 +43,4 @@ pub(crate) fn build() -> Runtime {
                 .expect("failed to build threaded runtime!")
         }
     }
-}
-
-#[cfg(not(feature = "multicore"))]
-pub(crate) fn build() -> Runtime {
-    Builder::new()
-        .enable_all()
-        .thread_name("proxy")
-        .basic_scheduler()
-        .build()
-        .expect("failed to build basic runtime!")
 }

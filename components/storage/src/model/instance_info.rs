@@ -1,10 +1,10 @@
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use rbatis::crud::{CRUDTable, CRUD};
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;
-use num_enum::TryFromPrimitive;
 
-#[derive(TryFromPrimitive)]
+#[derive(TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum InstanceStatus {
     /// Waiting for dispatch.
@@ -18,7 +18,7 @@ pub enum InstanceStatus {
     Stopped = 10,
 }
 
-#[derive(TryFromPrimitive)]
+#[derive(TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum InstanceType {
     Normal = 1,
@@ -37,14 +37,14 @@ pub struct InstanceInfo {
     pub wf_instance_id: Option<u64>,
     pub status: Option<u32>,
     pub result: Option<String>,
-    pub expected_trigger_time: Option<u64>,
+    pub expected_trigger_time: Option<i64>,
     pub actual_trigger_time: Option<u64>,
     pub finished_time: Option<u64>,
     pub last_report_time: Option<u64>,
     pub task_tracker_address: Option<u64>,
     pub running_times: Option<u64>,
-    pub gmt_create: Option<u64>,
-    pub gmt_modified: Option<u64>,
+    pub gmt_create: Option<i64>,
+    pub gmt_modified: Option<i64>,
 }
 
 impl CRUDTable for InstanceInfo {
@@ -59,3 +59,54 @@ impl CRUDTable for InstanceInfo {
     }
 }
 
+impl InstanceInfo {
+    pub fn create(
+        job_id: Option<u64>,
+        app_id: Option<u64>,
+        job_params: Option<String>,
+        instance_params: Option<String>,
+        wf_instance_id: Option<u64>,
+        expected_trigger_time: Option<i64>,
+    ) -> InstanceInfo {
+        let instance_id = 1;
+        let instance_type = if wf_instance_id.is_none() {
+            Some(InstanceType::Normal.into())
+        } else {
+            Some(InstanceType::WorkFlow.into())
+        };
+        InstanceInfo {
+            id: None,
+            job_id,
+            app_id,
+            instance_id: Some(instance_id),
+            job_params,
+            instance_params,
+            instance_type,
+            wf_instance_id,
+            status: Some(InstanceStatus::WaitingDispatch.into()),
+            result: None,
+            expected_trigger_time,
+            actual_trigger_time: None,
+            finished_time: None,
+            last_report_time: Some(-1),
+            task_tracker_address: None,
+            running_times: Some(0),
+            gmt_create: Some(chrono::Local::now().timestamp()),
+            gmt_modified: Some(chrono::Local::now().timestamp()),
+        }
+    }
+
+    pub fn get_id(&self) -> u64 {
+        self.id.unwrap_or(0)
+    }
+
+    #[inline]
+    pub fn generalized_running_status() -> Vec<u32> {
+        vec![
+            InstanceStatus::WaitingDispatch.into(),
+            InstanceStatus::WaitingWorkerReceive.into(),
+            InstanceStatus::Running.into(),
+        ]
+        .to_vec()
+    }
+}

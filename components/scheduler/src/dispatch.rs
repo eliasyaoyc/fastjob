@@ -83,3 +83,16 @@
 //     /// Report the current task msg to `WorkerManager`.
 //     fn report_task_msg(&self) {}
 // }
+
+use fastjob_components_storage::model::job_info::JobInfo;
+
+pub struct Dispatch {}
+
+impl Dispatch {
+    pub fn dispatch(&self, job: JobInfo, instance_id: u64) {}
+
+    fn inner_dispatch(&self) {}
+
+    fn create_sched_job(&self) {}
+    fn redispatch(&self) {}
+}

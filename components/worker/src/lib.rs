@@ -6,7 +6,6 @@ use grpcio::{ChannelBuilder, EnvBuilder};
 pub use error::Result;
 
 mod error;
-mod job_fetcher;
 pub mod worker_manager;
 mod dispatch;
 

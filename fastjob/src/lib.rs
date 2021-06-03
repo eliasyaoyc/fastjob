@@ -6,7 +6,6 @@ pub use error::Result;
 use ipnet::IpAdd;
 
 mod app;
-mod rt;
 
 mod config;
 mod error;

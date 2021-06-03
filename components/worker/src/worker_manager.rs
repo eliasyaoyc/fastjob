@@ -5,13 +5,11 @@
 //! so client will retry this request that send to another server util success unless achieved
 //! the maximum retry numbers and send has failed.
 use super::{error, Result};
-use crate::job_fetcher::JobFetcher;
-use crate::sender::Sender as SenderT;
 use crate::{init_grpc_client, Worker};
 use chrono::Local;
 use crossbeam::channel::{Receiver, Sender};
 use dashmap::DashMap;
-use fastjob_components_scheduler::Scheduler;
+use fastjob_components_scheduler::{Scheduler, SCHEDULE_INTERVAL};
 use fastjob_components_storage::model::{app_info::AppInfo, job_info::JobInfo, lock::Lock};
 use fastjob_components_storage::{BatisError, Storage};
 use fastjob_components_utils::component::{Component, ComponentStatus};
@@ -28,7 +26,6 @@ use snafu::ResultExt;
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
 const WORKER_MANAGER_FETCH_INIT_TIME: Duration = Duration::from_secs(2);
-const WORKER_MANAGER_FETCH_FIXED_TIME: Duration = Duration::from_millis(10000);
 const RETRY_TIMES: u32 = 3;
 
 pub struct WorkerManager<S: Storage> {
@@ -36,7 +33,7 @@ pub struct WorkerManager<S: Storage> {
     address: String,
     sched_pool: SchedPool,
     storage: Arc<S>,
-    workers: DashMap<str, Worker>,
+    workers: DashMap<u64, Worker>,
     scheduler: Scheduler<S>,
 }
 
@@ -50,7 +47,7 @@ impl<S: Storage> Debug for WorkerManager<S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("")
             .field(&self.id)
-            .field(&self.status)
+            .field(&self.address)
             .field(&self.sched_pool)
             .field(&self.storage)
             .field(&self.scheduler)
@@ -100,9 +97,9 @@ impl<S: Storage> Component for WorkerManager<S> {
     fn start(&mut self) {
         // Start scheduler thread.
         self.sched_pool.schedule_at_fixed_rate(
-            self.sched(),
+            self.scheduler(),
             WORKER_MANAGER_FETCH_INIT_TIME,
-            WORKER_MANAGER_FETCH_FIXED_TIME,
+            SCHEDULE_INTERVAL,
         );
     }
 
@@ -215,49 +212,64 @@ impl<S: Storage> WorkerManager<S> {
 
     /// Manually perform a schedule.
     pub fn manual_sched(&mut self) -> Result<()> {
-        self.sched();
+        self.sched()?;
         Ok(())
     }
 
-    fn sched(&mut self) {
+    fn scheduler(&mut self) {
+        match self.sched() {
+            Ok(_) => {}
+            Err(e) => { error!("{}", e) }
+        }
+    }
+
+    fn sched(&mut self) -> Result<()> {
         info!("Schedule task start.");
         let instant = Instant::now();
         let app_ids: Option<Vec<AppInfo>> = self.storage.find_all_by_current_server().context("")?;
         if app_ids.is_none() {
             info!("[JobScheduler] current server has no app's job to schedule.");
-            return;
+            return Ok(());
         }
-        let ids: Vec<&str> = app_ids
+        let ids: Vec<u64> = app_ids
             .unwrap()
             .iter()
             .map(|app| app.id)
             .collect();
 
-        self.clean_useless_worker(ids.clone());
+        let ids = ids.as_slice();
 
-        self.scheduler.schedule_cron_job(ids.clone())?;
+        self.clean_useless_worker(ids);
+
+        self.scheduler
+            .schedule_cron_job(ids)
+            .context(error::SchedulerFailed)?;
         let cron_cost = instant.elapsed();
 
-        self.scheduler.schedule_worker_flow(ids.clone())?;
+        self.scheduler
+            .schedule_worker_flow(ids.clone())
+            .context(error::SchedulerFailed)?;
         let worker_flow_cost = instant.elapsed().sub(cron_cost);
 
-        self.scheduler.schedule_frequent_job(ids)?;
+        self.scheduler
+            .schedule_frequent_job(ids)
+            .context(error::SchedulerFailed)?;
         let frequent_cost = instant.elapsed().sub(worker_flow_cost + cron_cost);
 
         info!("[JobScheduler] cron schedule cost: {}, workflow schedule cost: {}, frequent schedule: {}", cron_cost, worker_flow_cost, frequent_cost);
 
         let total_cost = instant.elapsed().as_millis();
-        if total_cost > WORKER_MANAGER_FETCH_FIXED_TIME.as_millis() {
+        if total_cost > SCHEDULE_INTERVAL.as_millis() {
             warn!("[JobScheduler] The database query is using too much time {} ms", total_cost);
         }
+
+        Ok(())
     }
 
 
     /// Clean the useless workers.
-    fn clean_useless_worker(&mut self, app_ids: Vec<&str>) {
-        self.workers
-            .iter()
-            .filter(|worker| { app_ids.contains(&worker.key()) });
+    fn clean_useless_worker(&mut self, app_ids: &[u64]) {
+        self.workers.retain(|k, _| app_ids.contains(&k));
     }
 
     /// Determine if the worker is to be removed.

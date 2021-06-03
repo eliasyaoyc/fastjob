@@ -10,12 +10,13 @@ edition = "2018"
 snafu = "0.6.10"
 crossbeam = "0.8.0"
 delay_timer = { version = "0.5.0", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }
 parking_lot = "0.11.1"
 slog = { version = "2.3", features = ["max_level_trace", "release_max_level_debug"] }
 slog-async = "2.3"
 slog-global = { version = "0.1", git = "https://github.com/breeswish/slog-global.git", rev = "d592f88e4dbba5eb439998463054f1a44fbf17b9" }
+chrono = "0.4.19"
 fastjob-components-log = { path = "../log" }
 fastjob-components-utils = { path = "../utils" }
 fastjob-components-storage = { path = "../storage" }
-
 
