@@ -12,7 +12,6 @@ use chrono::Local;
 use crossbeam::atomic::AtomicCell;
 use crossbeam::channel::{Receiver, Sender};
 use dashmap::DashMap;
-use fastjob::services::health_checker::HealthChecker;
 use fastjob_components_scheduler::Scheduler;
 use fastjob_components_storage::model::{app_info::AppInfo, job_info::JobInfo, lock::Lock};
 use fastjob_components_storage::{BatisError, Storage};
@@ -20,7 +19,6 @@ use fastjob_components_utils::component::{Component, ComponentStatus};
 use fastjob_components_utils::pair::PairCond;
 use fastjob_components_utils::sched_pool::{JobHandle, SchedPool};
 use fastjob_components_utils::time::duration_to_ms;
-use fastjob_components_utils::timing_wheel::TimingWheel;
 use fastjob_proto::fastjob::{
     WorkerManagerConfig, WorkerManagerScope, WorkerManagerScope::ServerSide,
 };
@@ -31,6 +29,7 @@ use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::process::id;
+use std::ops::Sub;
 
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
@@ -255,9 +254,10 @@ impl<S: Storage> WorkerManager<S> {
 
     fn sched(&mut self) {
         info!("Schedule task start.");
+        let instant = Instant::now();
         let app_ids: Option<Vec<AppInfo>> = self.storage.find_all_by_current_server().context("")?;
         if app_ids.is_none() {
-            info!("[JobScheduler] current server {} has no app's job to schedule.");
+            info!("[JobScheduler] current server has no app's job to schedule.");
             return;
         }
         let ids: &Vec<&str> = app_ids
@@ -269,10 +269,11 @@ impl<S: Storage> WorkerManager<S> {
         self.clean_useless_worker(ids);
 
         self.scheduler.schedule_cron_job(ids)?;
+        let cron_cost = instant.elapsed();
         self.scheduler.schedule_worker_flow(ids)?;
+        let worker_flow_cost = instant.elapsed().sub(cron_cost);
         self.scheduler.schedule_frequent_job(ids)?;
-
-
+        let frequent_cost = instant.elapsed().sub(worker_flow_cost + cron_cost);
     }
 
 
@@ -292,4 +293,20 @@ impl<S: Storage> WorkerManager<S> {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use std::time::{Instant, Duration};
+    use std::ops::Sub;
+
+    #[test]
+    fn t_elapsed() {
+        let instant = Instant::now();
+        std::thread::sleep(Duration::from_millis(500));
+        let cost1 = instant.elapsed().as_millis();
+        std::thread::sleep(Duration::from_millis(500));
+        let cost2 = instant.elapsed().as_millis().sub(cost1);
+        std::thread::sleep(Duration::from_millis(500));
+        let cost3 = instant.elapsed().as_millis().sub(cost1 + cost2);
+
+        println!("{},{},{}", cost1, cost2, cost3)
+    }
+}

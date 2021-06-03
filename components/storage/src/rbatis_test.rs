@@ -256,7 +256,7 @@ mod tests {
                 .unwrap();
 
             let w = Wrapper::new(&rb.driver_type().unwrap()).eq("id", "11");
-            let r:  = rb.fetch_by_wrapper("", &w).await;
+            let r: Result<BizActivityNoDel, Error> = rb.fetch_by_wrapper("", &w).await;
             if r.is_err() {
                 println!("{}", r.err().unwrap().to_string());
             }

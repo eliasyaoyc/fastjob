@@ -3,7 +3,8 @@ use snafu::{ResultExt, Snafu};
 pub type Result<T, E = SchedError> = std::result::Result<T, E>;
 
 #[derive(Debug, Snafu)]
-enum SchedError {
+#[snafu(visibility = "pub")]
+pub enum SchedError {
     #[snafu(display("Unable to read configuration from {}: {}", path.display(), source))]
     ReadConfiguration {
         source: std::io::Error,

@@ -1,6 +1,10 @@
 //! Scheduler which schedules the execution of `Task`. It receives commands from `WorkManager`.
 //!
 //! Scheduler keeps track of all the running task status and reports to `WorkerManager`.
+
+#[macro_use]
+extern crate fastjob_components_log;
+
 use std::convert::TryFrom;
 use std::mem::MaybeUninit;
 use std::sync::Arc;
@@ -22,9 +26,6 @@ use fastjob_components_storage::model::app_info::AppInfo;
 mod error;
 mod dispatch;
 mod instance_status_checker;
-
-#[macro_use]
-extern crate fastjob_components_log;
 
 const SCHEDULE_RATE: usize = 15000;
 
@@ -53,11 +54,12 @@ impl<S: Storage> Scheduler<S> {
 
     pub fn schedule(&self) {
         info!("Schedule task start.");
-        let app_ids: Option<Vec<AppInfo>> = self.storage.find_all_by_current_server().context("")?;
-        if app_ids.is_none() {
-            info!("[JobScheduler] current server {} has no app's job to schedule.");
-            return;
-        }
+        // let app_ids: Option<Vec<AppInfo>> = self.storage.find_all_by_current_server().context("")?;
+        // let app_ids: Option<Vec<AppInfo>> = self.storage.find_all_by_current_server();
+        // if app_ids.is_none() {
+        //     info!("[JobScheduler] current server has no app's job to schedule.");
+        //     return;
+        // }
 
 
         // loop {
@@ -120,15 +122,18 @@ impl<S: Storage> Scheduler<S> {
     }
 
     pub fn update_task(&self, task: Task) -> Result<()> {
-        self.delay_timer.update_task(task).context("")
+        self.delay_timer.update_task(task);
+        Ok(())
     }
 
     pub fn cancel_task(&self, task_id: u64, record_id: i64) -> Result<()> {
-        self.delay_timer.cancel_task(task_id, record_id).context("")
+        self.delay_timer.cancel_task(task_id, record_id);
+        Ok(())
     }
 
     pub fn remove_task(&self, task_id: u64) -> Result<()> {
-        self.delay_timer.remove_task(task_id).context("")
+        self.delay_timer.remove_task(task_id);
+        Ok(())
     }
 
     pub(crate) fn build_task<F>(&self, job: &mut JobInfo) -> Option<Task>
@@ -140,23 +145,23 @@ impl<S: Storage> Scheduler<S> {
         }
 
         let body = match JobType::try_from(job.processor_type.unwrap()) {
-            Some(_) => {
+            Ok(_) => {
                 create_async_fn_body!({
-                    self.sender.send(job);
+                    // self.sender.send(job);
                 })
             }
-            None => {
+            Err(_) => {
                 error!("Unknown atomic number: {}", job.processor_type.unwrap());
                 return None;
             }
         };
 
         let frequency = match JobTimeExpressionType::try_from(job.time_expression_type.unwrap()) {
-            Some(_) => CandyFrequency::Once(CandyCronStr("0/1 * * * * * *".to_string())),
-            Some(JobTimeExpressionType::CRON) => {
-                CandyFrequency::Repeated(CandyCronStr(job.time_expression.unwrap()))
+            Ok(_) => {
+                // let expression = job.time_expression.unwrap();
+                CandyFrequency::Repeated(CandyCronStr("".to_string()))
             }
-            None => {
+            Err(_) => {
                 error!("Unknown atomic number: {}", job.processor_type.unwrap());
                 return None;
             }
@@ -165,15 +170,15 @@ impl<S: Storage> Scheduler<S> {
         let task = TaskBuilder::default()
             .set_task_id(job.id.unwrap())
             .set_frequency_by_candy(frequency)
-            .set_maximun_parallel_runable_num(job.concurrency.unwrap_or_else(1) as u64)
-            .spawn(body)
-            .context("")?;
+            .set_maximun_parallel_runable_num(job.concurrency.unwrap_or(1) as u64)
+            .spawn(body);
+        // .context("")?;
 
-        Some(task)
+        Some(task.unwrap())
     }
 
     pub fn shutdown(&self) {
         info!("Scheduler stop.");
-        self.pair.notify();
+        // self.pair.notify();
     }
 }
