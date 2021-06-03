@@ -9,7 +9,6 @@ use crate::job_fetcher::JobFetcher;
 use crate::sender::Sender as SenderT;
 use crate::{init_grpc_client, Worker};
 use chrono::Local;
-use crossbeam::atomic::AtomicCell;
 use crossbeam::channel::{Receiver, Sender};
 use dashmap::DashMap;
 use fastjob_components_scheduler::Scheduler;
@@ -18,18 +17,13 @@ use fastjob_components_storage::{BatisError, Storage};
 use fastjob_components_utils::component::{Component, ComponentStatus};
 use fastjob_components_utils::pair::PairCond;
 use fastjob_components_utils::sched_pool::{JobHandle, SchedPool};
-use fastjob_components_utils::time::duration_to_ms;
-use fastjob_proto::fastjob::{
-    WorkerManagerConfig, WorkerManagerScope, WorkerManagerScope::ServerSide,
-};
-use snafu::ResultExt;
-use std::collections::HashMap;
+use fastjob_proto::fastjob::{WorkerManagerConfig};
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::process::id;
 use std::ops::Sub;
+use snafu::ResultExt;
 
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
@@ -40,7 +34,6 @@ const RETRY_TIMES: u32 = 3;
 pub struct WorkerManager<S: Storage> {
     id: i64,
     address: String,
-    status: AtomicCell<ComponentStatus>,
     sched_pool: SchedPool,
     storage: Arc<S>,
     workers: DashMap<str, Worker>,
@@ -67,7 +60,6 @@ impl<S: Storage> Debug for WorkerManager<S> {
 
 pub struct WorkerManagerBuilder<S: Storage> {
     id: i64,
-    status: AtomicCell<ComponentStatus>,
     config: WorkerManagerConfig,
     storage: Arc<S>,
 }
@@ -79,7 +71,6 @@ impl<S: Storage> WorkerManagerBuilder<S> {
     ) -> Self {
         Self {
             id: 0,
-            status: AtomicCell::new(ComponentStatus::Initialized),
             config,
             storage: Arc::new(storage),
         }
@@ -94,7 +85,6 @@ impl<S: Storage> WorkerManagerBuilder<S> {
         WorkerManager {
             id: self.id,
             address: "".to_string(),
-            status: AtomicCell::new(ComponentStatus::Ready),
             sched_pool: SchedPool::new(
                 WORKER_MANAGER_SCHED_POOL_NUM_SIZE,
                 WORKER_MANAGER_SCHED_POOL_NAME,
@@ -108,28 +98,16 @@ impl<S: Storage> WorkerManagerBuilder<S> {
 
 impl<S: Storage> Component for WorkerManager<S> {
     fn start(&mut self) {
-        assert_eq!(self.status.load(), ComponentStatus::Ready);
-
-        // Change status.
-        self.status.store(ComponentStatus::Starting);
-
         // Start scheduler thread.
         self.sched_pool.schedule_at_fixed_rate(
             self.sched(),
             WORKER_MANAGER_FETCH_INIT_TIME,
             WORKER_MANAGER_FETCH_FIXED_TIME,
         );
-
-        self.status.store(ComponentStatus::Running);
     }
 
     fn stop(&mut self) {
-        assert_eq!(self.status.load(), ComponentStatus::Running);
-        self.status.store(ComponentStatus::Terminating);
-
-        // self.scheduler.shutdown();
-
-        self.status.store(ComponentStatus::Shutdown);
+        self.scheduler.shutdown();
     }
 }
 
