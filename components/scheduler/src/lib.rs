@@ -26,6 +26,9 @@ use fastjob_components_storage::model::app_info::AppInfo;
 mod error;
 mod dispatch;
 mod instance_status_checker;
+mod container;
+mod mapreduce;
+mod workerflow;
 
 const SCHEDULE_RATE: usize = 15000;
 

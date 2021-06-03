@@ -12,7 +12,6 @@ mod config;
 mod error;
 mod services;
 
-mod cluster;
 mod log;
 pub mod server;
 

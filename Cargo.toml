@@ -9,8 +9,6 @@ members = [
     "components/utils",
     "components/storage",
     "components/log",
-    "components/container",
-    "components/workflow",
 ]
 
 [profile.dev]
