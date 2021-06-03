@@ -228,11 +228,11 @@ impl<S: Storage> WorkerManager<S> {
         }
         // send hello request to target server.
         let client = init_grpc_client(target_server);
-        let mut req = Ping::default();
-        let reply = client.ping(&req).expect("Ping failed");
-        if reply.get_code() == 200 {
-            return true;
-        }
+        // let mut req = Ping::default();
+        // let reply = client.ping(&req).expect("Ping failed");
+        // if reply.get_code() == 200 {
+        //     return true;
+        // }
         false
     }
 
