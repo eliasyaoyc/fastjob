@@ -91,8 +91,8 @@ impl InstanceInfo {
             last_report_time: Some(-1),
             task_tracker_address: None,
             running_times: Some(0),
-            gmt_create: Some(chrono::Local::now().timestamp()),
-            gmt_modified: Some(chrono::Local::now().timestamp()),
+            gmt_create: None,
+            gmt_modified: None
         }
     }
 
@@ -107,6 +107,6 @@ impl InstanceInfo {
             InstanceStatus::WaitingWorkerReceive.into(),
             InstanceStatus::Running.into(),
         ]
-        .to_vec()
+            .to_vec()
     }
 }

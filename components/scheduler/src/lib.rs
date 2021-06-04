@@ -6,24 +6,22 @@
 extern crate fastjob_components_log;
 
 use std::convert::TryFrom;
-use std::mem::MaybeUninit;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
-
-use crossbeam::channel::{Receiver, Sender};
 use delay_timer::prelude::*;
-use delay_timer::prelude::{DelayTaskHandler, unblock_process_task_fn};
 use snafu::ResultExt;
-
 use error::Result;
-use fastjob_components_storage::model::app_info::AppInfo;
-use fastjob_components_storage::model::job_info::{JobInfo, JobStatus, JobTimeExpressionType, JobType};
+use fastjob_components_storage::model::{
+    app_info::AppInfo,
+    job_info::{JobInfo, JobStatus, JobTimeExpressionType, JobType},
+    instance_info::InstanceInfo,
+};
 use fastjob_components_storage::Storage;
 use fastjob_components_utils::component::Component;
-use fastjob_components_utils::pair::PairCond;
-use fastjob_components_storage::model::instance_info::InstanceInfo;
 use crate::dispatch::Dispatch;
+use std::str::FromStr;
+use cron::Schedule;
 
 pub mod error;
 mod dispatch;
@@ -86,19 +84,26 @@ impl<S: Storage> Scheduler<S> {
                 for job in job_infos {
                     let instance_id = job_instance_map.get(&job.id.unwrap());
                     let target_trigger_time = job.get_next_trigger_time().unwrap();
-                    let delay = if target_trigger_time < now {
-                        warn!("[Job-{}] schedule delay, expect: {}, current: {}", job.id.unwrap(), target_trigger_time, chrono::Local::now().timestamp_millis());
-                        0
-                    } else {
-                        target_trigger_time - now
-                    };
+
+                    // let delay = if target_trigger_time < now {
+                    //     warn!("[Job-{}] schedule delay, expect: {}, current: {}", job.id.unwrap(), target_trigger_time, chrono::Local::now().timestamp_millis());
+                    //     0
+                    // } else {
+                    //     target_trigger_time - now
+                    // };
+
                     // push to timing wheel, consider use tokio library?.
-
+                    if instance_id.is_none() {
+                        return Ok(());
+                    }
+                    if let Some(task) = self.build_task(job.clone(), instance_id.unwrap().clone()) {
+                        self.delay_timer.add_task(task);
+                    }
+                    // 3. calculate job the next trigger time.(ignore repeat execute in 5s, i.e.
+                    // the minimum continuous execution interval in cron mode is SCHEDULE_INTERVAL ms).
+                    self.refresh_job(job.clone())?;
                 }
-
-                // 3. calculate job the next trigger time.(ignore repeat execute in 5s, i.e.
-                // the minimum continuous execution interval in cron mode is SCHEDULE_INTERVAL ms).
-                self.refresh_job(job_infos)?;
+                Ok(())
             })
         }
         Ok(())
@@ -150,11 +155,26 @@ impl<S: Storage> Scheduler<S> {
         Ok(())
     }
 
-    fn refresh_job(&self, jobs: Vec<JobInfo>) {}
+    fn refresh_job(&self, mut job: JobInfo) -> Result<()> {
+        match job.time_expression {
+            Some(express) => {
+                let next_trigger_time = self.calculate_next_trigger_time(express.as_str())?;
+                job.next_trigger_time = Some(next_trigger_time);
+            }
+            None => {
+                job.status = Some(JobStatus::DISABLED.into());
+            }
+        }
+        self.storage.update(&mut job)?;
+        Ok(())
+    }
 
     fn refresh_workflow(&self) {}
 
-    fn calculate_next_trigger_time(&self) {}
+    fn calculate_next_trigger_time(&self, expression: &str) -> Result<i64> {
+        let next_trigger_time = Schedule::from_str(expression)?.upcoming(Local).next().unwrap();
+        Ok(next_trigger_time.timestamp_millis())
+    }
 
     pub fn filter_task_record_id<P>(&self, predicate: P) -> Option<i64>
         where
@@ -185,47 +205,61 @@ impl<S: Storage> Scheduler<S> {
         Ok(())
     }
 
-    pub(crate) fn build_task<F>(&self, job: &mut JobInfo) -> Option<Task>
+    // pub(crate) fn build_task<F>(&self, job: JobInfo, delay: i64, instance_id: u64) -> Result<Option<Task>>
+    pub(crate) fn build_task<F>(&self, job: JobInfo, instance_id: u64) -> Result<Option<Task>>
         where
             F: Fn(TaskContext) -> Box<dyn DelayTaskHandler> + 'static + Send + Sync,
     {
-        if !job.is_running() {
-            return None;
-        }
-
         let body = match JobType::try_from(job.processor_type.unwrap()) {
             Ok(_) => {
                 create_async_fn_body!({
+                    info!("Job {} start running",job.id.unwrap());
+                    self.dispatch.dispatch(job.clone(),instance_id);
                 })
             }
             Err(_) => {
                 error!("Unknown atomic number: {}", job.processor_type.unwrap());
-                return None;
+                // i think unimportant for this error, so just log
+                return Ok(None);
             }
         };
 
         let frequency = match JobTimeExpressionType::try_from(job.time_expression_type.unwrap()) {
             Ok(_) => {
-                // let expression = job.time_expression.unwrap();
-                CandyFrequency::Repeated(CandyCronStr("".to_string()))
+                CandyFrequency::Once(CandyCronStr("".to_string()))
             }
             Err(_) => {
-                error!("Unknown atomic number: {}", job.processor_type.unwrap());
-                return None;
+                error!("Unknown atomic number: {}", job.time_expression_type.unwrap());
+                // i think unimportant for this error, so just log
+                return Ok(None);
             }
         };
 
         let task = TaskBuilder::default()
             .set_task_id(job.id.unwrap())
-            .set_frequency_by_candy(frequency)
+            .set_frequency_by_candy(CandyFrequency::Once(job.time_expression.unwrap()))
             .set_maximun_parallel_runable_num(job.concurrency.unwrap_or(1) as u64)
-            .spawn(body);
-        // .context("")?;
+            .spawn(body)
+            .context(error::ConstructorTaskFailed { task_id: job.id.unwrap() })?;
 
-        Some(task.unwrap())
+        Ok(Some(task))
     }
 
     pub fn shutdown(&self) {
         info!("Scheduler stop.");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn t_cron() {
+        let expression = "0   30   9,12,15     1,15       May-Aug  Mon,Wed,Fri  2018/2";
+        let schedule = Schedule::from_str(expression).unwrap();
+        println!("Upcoming fire times:");
+        let a = schedule.upcoming(Utc).next().unwrap();
+        let b = a.max(chrono::Utc::now());
+        println!("-> {}", b);
     }
 }

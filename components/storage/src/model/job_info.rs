@@ -27,6 +27,8 @@ pub enum JobTimeExpressionType {
 pub enum JobStatus {
     Running = 1,
     Stop = 2,
+    DISABLED = 3,
+    DELETED = 10,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

@@ -19,6 +19,12 @@ pub enum SchedError {
     #[snafu(display("Not match scheduler."))]
     NotMatch {},
 
-    #[snafu(display("scheduler {} is too busy.", sched_id))]
+    #[snafu(display("Scheduler {} is too busy.", sched_id))]
     SchedTooBusy { sched_id: u64 },
+
+    #[snafu(display("Constructor task id: {} encounter error: {}", task_id, source))]
+    ConstructorTaskFailed {
+        source: delay_timer::error::TaskError,
+        task_id: u64,
+    },
 }

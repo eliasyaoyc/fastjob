@@ -1,3 +1,19 @@
+/*
+ Navicat Premium Data Transfer
+
+ Source Server         : localhost
+ Source Server Type    : MySQL
+ Source Server Version : 80018
+ Source Host           : localhost:3306
+ Source Schema         : fastjob
+
+ Target Server Type    : MySQL
+ Target Server Version : 80018
+ File Encoding         : 65001
+
+ Date: 04/06/2021 17:41:59
+*/
+
 SET NAMES utf8mb4;
 SET
 FOREIGN_KEY_CHECKS = 0;
@@ -8,11 +24,11 @@ FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `app_info`;
 CREATE TABLE `app_info`
 (
-    `id`             bigint NOT NULL AUTO_INCREMENT,
+    `id`             bigint(20) NOT NULL AUTO_INCREMENT,
     `app_name`       varchar(255) DEFAULT NULL,
     `current_server` varchar(255) DEFAULT NULL,
-    `gmt_create`     datetime(6) DEFAULT NULL,
-    `gmt_modified`   datetime(6) DEFAULT NULL,
+    `gmt_create`     datetime(6) DEFAULT CURRENT_TIMESTAMP (6),
+    `gmt_modified`   datetime(6) DEFAULT CURRENT_TIMESTAMP (6) ON UPDATE CURRENT_TIMESTAMP (6),
     `password`       varchar(255) DEFAULT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `appNameUK` (`app_name`)
@@ -24,15 +40,15 @@ CREATE TABLE `app_info`
 DROP TABLE IF EXISTS `container_info`;
 CREATE TABLE `container_info`
 (
-    `id`               bigint NOT NULL AUTO_INCREMENT,
-    `app_id`           bigint       DEFAULT NULL,
+    `id`               bigint(20) NOT NULL AUTO_INCREMENT,
+    `app_id`           bigint(20) DEFAULT NULL,
     `container_name`   varchar(255) DEFAULT NULL,
-    `gmt_create`       datetime(6) DEFAULT NULL,
-    `gmt_modified`     datetime(6) DEFAULT NULL,
+    `gmt_create`       datetime(6) DEFAULT CURRENT_TIMESTAMP (6),
+    `gmt_modified`     datetime(6) DEFAULT CURRENT_TIMESTAMP (6) ON UPDATE CURRENT_TIMESTAMP (6),
     `last_deploy_time` datetime(6) DEFAULT NULL,
     `source_info`      varchar(255) DEFAULT NULL,
-    `source_type`      int          DEFAULT NULL,
-    `status`           int          DEFAULT NULL,
+    `source_type`      int(11) DEFAULT NULL,
+    `status`           int(11) DEFAULT NULL,
     `version`          varchar(255) DEFAULT NULL,
     PRIMARY KEY (`id`),
     KEY                `IDX8hixyaktlnwil2w9up6b0p898` (`app_id`)
@@ -44,24 +60,24 @@ CREATE TABLE `container_info`
 DROP TABLE IF EXISTS `instance_info`;
 CREATE TABLE `instance_info`
 (
-    `id`                    bigint NOT NULL AUTO_INCREMENT,
-    `actual_trigger_time`   bigint       DEFAULT NULL,
-    `app_id`                bigint       DEFAULT NULL,
-    `expected_trigger_time` bigint       DEFAULT NULL,
-    `finished_time`         bigint       DEFAULT NULL,
-    `gmt_create`            datetime(6) DEFAULT NULL,
-    `gmt_modified`          datetime(6) DEFAULT NULL,
-    `instance_id`           bigint       DEFAULT NULL,
+    `id`                    bigint(20) NOT NULL AUTO_INCREMENT,
+    `actual_trigger_time`   bigint(20) DEFAULT NULL,
+    `app_id`                bigint(20) DEFAULT NULL,
+    `expected_trigger_time` bigint(20) DEFAULT NULL,
+    `finished_time`         bigint(20) DEFAULT NULL,
+    `gmt_create`            datetime(6) DEFAULT CURRENT_TIMESTAMP (6),
+    `gmt_modified`          datetime(6) DEFAULT CURRENT_TIMESTAMP (6) ON UPDATE CURRENT_TIMESTAMP (6),
+    `instance_id`           bigint(20) DEFAULT NULL,
     `instance_params`       longtext,
-    `job_id`                bigint       DEFAULT NULL,
+    `job_id`                bigint(20) DEFAULT NULL,
     `job_params`            longtext,
-    `last_report_time`      bigint       DEFAULT NULL,
+    `last_report_time`      bigint(20) DEFAULT NULL,
     `result`                text,
-    `running_times`         bigint       DEFAULT NULL,
-    `status`                int          DEFAULT NULL,
+    `running_times`         bigint(20) DEFAULT NULL,
+    `status`                int(11) DEFAULT NULL,
     `task_tracker_address`  varchar(255) DEFAULT NULL,
-    `instance_type`         int          DEFAULT NULL,
-    `wf_instance_id`        bigint       DEFAULT NULL,
+    `instance_type`         int(11) DEFAULT NULL,
+    `wf_instance_id`        bigint(20) DEFAULT NULL,
     PRIMARY KEY (`id`),
     KEY                     `IDX5b1nhpe5je7gc5s1ur200njr7` (`job_id`),
     KEY                     `IDXjnji5lrr195kswk6f7mfhinrs` (`app_id`),
@@ -74,50 +90,50 @@ CREATE TABLE `instance_info`
 DROP TABLE IF EXISTS `job_info`;
 CREATE TABLE `job_info`
 (
-    `id`                   bigint NOT NULL AUTO_INCREMENT,
-    `app_id`               bigint       DEFAULT NULL,
-    `concurrency`          int          DEFAULT NULL,
+    `id`                   bigint(20) NOT NULL AUTO_INCREMENT,
+    `app_id`               bigint(20) DEFAULT NULL,
+    `concurrency`          int(11) DEFAULT NULL,
     `designated_workers`   varchar(255) DEFAULT NULL,
-    `dispatch_strategy`    int          DEFAULT NULL,
-    `execute_type`         int          DEFAULT NULL,
+    `dispatch_strategy`    int(11) DEFAULT NULL,
+    `execute_type`         int(11) DEFAULT NULL,
     `extra`                varchar(255) DEFAULT NULL,
-    `gmt_create`           datetime(6) DEFAULT NULL,
-    `gmt_modified`         datetime(6) DEFAULT NULL,
-    `instance_retry_num`   int          DEFAULT NULL,
-    `instance_time_limit`  bigint       DEFAULT NULL,
+    `gmt_create`           datetime(6) DEFAULT CURRENT_TIMESTAMP (6),
+    `gmt_modified`         datetime(6) DEFAULT CURRENT_TIMESTAMP (6) ON UPDATE CURRENT_TIMESTAMP (6),
+    `instance_retry_num`   int(11) DEFAULT NULL,
+    `instance_time_limit`  bigint(20) DEFAULT NULL,
     `job_description`      varchar(255) DEFAULT NULL,
     `job_name`             varchar(255) DEFAULT NULL,
     `job_params`           text,
     `lifecycle`            varchar(255) DEFAULT NULL,
-    `max_instance_num`     int          DEFAULT NULL,
-    `max_worker_count`     int          DEFAULT NULL,
+    `max_instance_num`     int(11) unsigned DEFAULT NULL,
+    `max_worker_count`     int(11) DEFAULT NULL,
     `min_cpu_cores`        double NOT NULL,
     `min_disk_space`       double NOT NULL,
     `min_memory_space`     double NOT NULL,
-    `next_trigger_time`    bigint       DEFAULT NULL,
+    `next_trigger_time`    bigint(20) DEFAULT NULL,
     `notify_user_ids`      varchar(255) DEFAULT NULL,
     `processor_info`       varchar(255) DEFAULT NULL,
-    `processor_type`       int          DEFAULT NULL,
-    `status`               int          DEFAULT NULL,
-    `task_retry_num`       int          DEFAULT NULL,
+    `processor_type`       int(11) DEFAULT NULL,
+    `status`               int(11) DEFAULT NULL,
+    `task_retry_num`       int(11) DEFAULT NULL,
     `time_expression`      varchar(255) DEFAULT NULL,
-    `time_expression_type` int          DEFAULT NULL,
+    `time_expression_type` int(11) DEFAULT NULL,
     PRIMARY KEY (`id`),
     KEY                    `IDXk2xprmn3lldmlcb52i36udll1` (`app_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ----------------------------
--- Table structure for oms_lock
+-- Table structure for lock
 -- ----------------------------
 DROP TABLE IF EXISTS `lock`;
 CREATE TABLE `lock`
 (
-    `id`            bigint NOT NULL AUTO_INCREMENT,
-    `gmt_create`    datetime(6) DEFAULT NULL,
-    `gmt_modified`  datetime(6) DEFAULT NULL,
-    `lock_name`     varchar(255) DEFAULT NULL,
-    `max_lock_time` bigint       DEFAULT NULL,
-    `owner_ip`      varchar(255) DEFAULT NULL,
+    `id`            bigint(20) NOT NULL AUTO_INCREMENT,
+    `gmt_create`    datetime(6) DEFAULT CURRENT_TIMESTAMP (6),
+    `gmt_modified`  datetime(6) DEFAULT CURRENT_TIMESTAMP (6) ON UPDATE CURRENT_TIMESTAMP (6),
+    `lock_name`     varchar(255)                                                  DEFAULT NULL,
+    `max_lock_time` bigint(20) DEFAULT NULL,
+    `owner_ip`      varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `lockNameUK` (`lock_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -128,9 +144,9 @@ CREATE TABLE `lock`
 DROP TABLE IF EXISTS `server_info`;
 CREATE TABLE `server_info`
 (
-    `id`           bigint NOT NULL AUTO_INCREMENT,
-    `gmt_create`   datetime(6) DEFAULT NULL,
-    `gmt_modified` datetime(6) DEFAULT NULL,
+    `id`           bigint(20) NOT NULL AUTO_INCREMENT,
+    `gmt_create`   datetime(6) DEFAULT CURRENT_TIMESTAMP (6),
+    `gmt_modified` datetime(6) DEFAULT CURRENT_TIMESTAMP (6) ON UPDATE CURRENT_TIMESTAMP (6),
     `ip`           varchar(255) DEFAULT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `UKtk8ytgpl7mpukhnvhbl82kgvy` (`ip`)
@@ -142,11 +158,11 @@ CREATE TABLE `server_info`
 DROP TABLE IF EXISTS `user_info`;
 CREATE TABLE `user_info`
 (
-    `id`           bigint NOT NULL AUTO_INCREMENT,
+    `id`           bigint(20) NOT NULL AUTO_INCREMENT,
     `email`        varchar(255) DEFAULT NULL,
     `extra`        varchar(255) DEFAULT NULL,
-    `gmt_create`   datetime(6) DEFAULT NULL,
-    `gmt_modified` datetime(6) DEFAULT NULL,
+    `gmt_create`   datetime(6) DEFAULT CURRENT_TIMESTAMP (6),
+    `gmt_modified` datetime(6) DEFAULT CURRENT_TIMESTAMP (6) ON UPDATE CURRENT_TIMESTAMP (6),
     `password`     varchar(255) DEFAULT NULL,
     `phone`        varchar(255) DEFAULT NULL,
     `username`     varchar(255) DEFAULT NULL,
@@ -160,19 +176,19 @@ CREATE TABLE `user_info`
 DROP TABLE IF EXISTS `workflow_info`;
 CREATE TABLE `workflow_info`
 (
-    `id`                   bigint NOT NULL AUTO_INCREMENT,
-    `app_id`               bigint       DEFAULT NULL,
+    `id`                   bigint(20) NOT NULL AUTO_INCREMENT,
+    `app_id`               bigint(20) DEFAULT NULL,
     `extra`                varchar(255) DEFAULT NULL,
-    `gmt_create`           datetime(6) DEFAULT NULL,
-    `gmt_modified`         datetime(6) DEFAULT NULL,
+    `gmt_create`           datetime(6) DEFAULT CURRENT_TIMESTAMP (6),
+    `gmt_modified`         datetime(6) DEFAULT CURRENT_TIMESTAMP (6) ON UPDATE CURRENT_TIMESTAMP (6),
     `lifecycle`            varchar(255) DEFAULT NULL,
-    `max_wf_instance_num`  int          DEFAULT NULL,
-    `next_trigger_time`    bigint       DEFAULT NULL,
+    `max_wf_instance_num`  int(11) DEFAULT NULL,
+    `next_trigger_time`    bigint(20) DEFAULT NULL,
     `notify_user_ids`      varchar(255) DEFAULT NULL,
     `pedag`                text,
-    `status`               int          DEFAULT NULL,
+    `status`               int(11) DEFAULT NULL,
     `time_expression`      varchar(255) DEFAULT NULL,
-    `time_expression_type` int          DEFAULT NULL,
+    `time_expression_type` int(11) DEFAULT NULL,
     `wf_description`       varchar(255) DEFAULT NULL,
     `wf_name`              varchar(255) DEFAULT NULL,
     PRIMARY KEY (`id`),
@@ -185,20 +201,20 @@ CREATE TABLE `workflow_info`
 DROP TABLE IF EXISTS `workflow_instance_info`;
 CREATE TABLE `workflow_instance_info`
 (
-    `id`                    bigint NOT NULL AUTO_INCREMENT,
-    `actual_trigger_time`   bigint DEFAULT NULL,
-    `app_id`                bigint DEFAULT NULL,
+    `id`                    bigint(20) NOT NULL AUTO_INCREMENT,
+    `actual_trigger_time`   bigint(20) DEFAULT NULL,
+    `app_id`                bigint(20) DEFAULT NULL,
     `dag`                   text,
-    `expected_trigger_time` bigint DEFAULT NULL,
-    `finished_time`         bigint DEFAULT NULL,
-    `gmt_create`            datetime(6) DEFAULT NULL,
-    `gmt_modified`          datetime(6) DEFAULT NULL,
+    `expected_trigger_time` bigint(20) DEFAULT NULL,
+    `finished_time`         bigint(20) DEFAULT NULL,
+    `gmt_create`            datetime(6) DEFAULT CURRENT_TIMESTAMP (6),
+    `gmt_modified`          datetime(6) DEFAULT CURRENT_TIMESTAMP (6) ON UPDATE CURRENT_TIMESTAMP (6),
     `result`                text,
-    `status`                int    DEFAULT NULL,
+    `status`                int(11) DEFAULT NULL,
     `wf_context`            text,
     `wf_init_params`        text,
-    `wf_instance_id`        bigint DEFAULT NULL,
-    `workflow_id`           bigint DEFAULT NULL,
+    `wf_instance_id`        bigint(20) DEFAULT NULL,
+    `workflow_id`           bigint(20) DEFAULT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -208,18 +224,18 @@ CREATE TABLE `workflow_instance_info`
 DROP TABLE IF EXISTS `workflow_node_info`;
 CREATE TABLE `workflow_node_info`
 (
-    `id`               bigint NOT NULL AUTO_INCREMENT,
-    `app_id`           bigint NOT NULL,
+    `id`               bigint(20) NOT NULL AUTO_INCREMENT,
+    `app_id`           bigint(20) NOT NULL,
     `enable`           bit(1) NOT NULL,
     `extra`            text,
-    `gmt_create`       datetime(6) NOT NULL,
-    `gmt_modified`     datetime(6) NOT NULL,
-    `job_id`           bigint       DEFAULT NULL,
+    `gmt_create`       datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP (6),
+    `gmt_modified`     datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP (6) ON UPDATE CURRENT_TIMESTAMP (6),
+    `job_id`           bigint(20) DEFAULT NULL,
     `node_name`        varchar(255) DEFAULT NULL,
     `node_params`      text,
     `skip_when_failed` bit(1) NOT NULL,
-    `type`             int          DEFAULT NULL,
-    `workflow_id`      bigint       DEFAULT NULL,
+    `type`             int(11) DEFAULT NULL,
+    `workflow_id`      bigint(20) DEFAULT NULL,
     PRIMARY KEY (`id`),
     KEY                `IDX36t7rhj4mkg2a5pb4ttorscta` (`app_id`),
     KEY                `IDXacr0i6my8jr002ou8i1gmygju` (`workflow_id`)
