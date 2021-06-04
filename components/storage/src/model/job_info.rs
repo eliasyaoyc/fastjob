@@ -35,7 +35,6 @@ pub enum JobStatus {
 pub struct JobInfo {
     pub id: Option<u64>,
     pub app_id: Option<u64>,
-    /// deprecated
     pub concurrency: Option<u32>,
     /// Specifies the machine to run, empty represents unlimited,
     /// non-empty will only use one of the machines to run (multi-value comma split)

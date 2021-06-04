@@ -3,8 +3,9 @@ use rbatis::crud::{CRUDTable, CRUD};
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;
+use std::borrow::{Borrow, BorrowMut};
 
-#[derive(TryFromPrimitive, IntoPrimitive)]
+#[derive(TryFromPrimitive, IntoPrimitive, Eq, PartialEq, Hash)]
 #[repr(u32)]
 pub enum InstanceStatus {
     /// Waiting for dispatch.
@@ -38,10 +39,10 @@ pub struct InstanceInfo {
     pub status: Option<u32>,
     pub result: Option<String>,
     pub expected_trigger_time: Option<i64>,
-    pub actual_trigger_time: Option<u64>,
-    pub finished_time: Option<u64>,
-    pub last_report_time: Option<u64>,
-    pub task_tracker_address: Option<u64>,
+    pub actual_trigger_time: Option<i64>,
+    pub finished_time: Option<i64>,
+    pub last_report_time: Option<i64>,
+    pub task_tracker_address: Option<String>,
     pub running_times: Option<u64>,
     pub gmt_create: Option<i64>,
     pub gmt_modified: Option<i64>,
@@ -92,7 +93,7 @@ impl InstanceInfo {
             task_tracker_address: None,
             running_times: Some(0),
             gmt_create: None,
-            gmt_modified: None
+            gmt_modified: None,
         }
     }
 
@@ -108,5 +109,15 @@ impl InstanceInfo {
             InstanceStatus::Running.into(),
         ]
             .to_vec()
+    }
+
+    #[inline]
+    pub fn as_ref(&self) -> &InstanceInfo {
+        self.borrow()
+    }
+
+    #[inline]
+    pub fn as_mut_ref(&mut self) -> &mut InstanceInfo {
+        self.borrow_mut()
     }
 }

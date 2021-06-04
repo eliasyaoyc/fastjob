@@ -266,22 +266,9 @@ impl<S: Storage> WorkerManager<S> {
         Ok(())
     }
 
-
     /// Clean the useless workers.
     fn clean_useless_worker(&mut self, app_ids: &[u64]) {
         self.workers.retain(|k, _| app_ids.contains(&k));
-    }
-
-    /// Determine if the worker is to be removed.
-    #[inline]
-    fn is_need_remove(&self) -> bool {
-        true
-    }
-
-    /// Returns the status of `WorkerManager`.
-    #[inline]
-    pub fn get_status(&self) -> ComponentStatus {
-        self.status.load()
     }
 }
 
