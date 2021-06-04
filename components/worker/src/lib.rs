@@ -8,6 +8,8 @@ pub use error::Result;
 mod error;
 pub mod worker_manager;
 mod dispatch;
+mod instance_status_checker;
+mod task;
 
 #[macro_use]
 extern crate fastjob_components_log;

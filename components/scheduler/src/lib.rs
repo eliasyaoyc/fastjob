@@ -6,26 +6,28 @@
 extern crate fastjob_components_log;
 
 use std::convert::TryFrom;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
+
+use cron::Schedule;
 use delay_timer::prelude::*;
 use snafu::ResultExt;
+
 use error::Result;
 use fastjob_components_storage::model::{
     app_info::AppInfo,
-    job_info::{JobInfo, JobStatus, JobTimeExpressionType, JobType},
     instance_info::InstanceInfo,
+    job_info::{JobInfo, JobStatus, JobTimeExpressionType, JobType},
 };
 use fastjob_components_storage::Storage;
 use fastjob_components_utils::component::Component;
+
 use crate::dispatch::Dispatch;
-use std::str::FromStr;
-use cron::Schedule;
 
 pub mod error;
 mod dispatch;
-mod instance_status_checker;
 mod container;
 mod mapreduce;
 mod workflow;
@@ -36,17 +38,18 @@ pub const SCHEDULE_INTERVAL: Duration = Duration::from_millis(10000);
 pub struct Scheduler<S: Storage> {
     delay_timer: DelayTimer,
     storage: S,
-    dispatch: Dispatch,
+    task_sender: async_channel::Sender<(JobInfo, u64)>,
 }
 
 impl<S: Storage> Scheduler<S> {
     pub fn new(
         storage: S,
+        task_sender: async_channel::Sender<(JobInfo, u64)>,
     ) -> Self {
         Self {
             delay_timer: DelayTimerBuilder::default().enable_status_report().build(),
             storage,
-            dispatch: Dispatch {},
+            task_sender,
         }
     }
 
@@ -214,7 +217,7 @@ impl<S: Storage> Scheduler<S> {
             Ok(_) => {
                 create_async_fn_body!({
                     info!("Job {} start running",job.id.unwrap());
-                    self.dispatch.dispatch(job.clone(),instance_id);
+                    self.task_sender.send((job.clone(),instance_id));
                 })
             }
             Err(_) => {

@@ -112,33 +112,6 @@ impl Storage for MysqlStorage {
         }
     }
 
-    fn fetch<T>(&self, w: &Wrapper) -> Result<T>
-        where
-            T: CRUDTable,
-    {
-        match rbatis::core::runtime::task::block_on(async {
-            // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
-            self.rb.fetch_by_wrapper("", w).await
-        }) {
-            Ok(v) => Ok(v),
-            Err(e) => Err(e),
-        }
-    }
-
-    fn fetch_page<T>(&self, w: &Wrapper, page_no: u64, page_size: u64) -> Result<Page<T>>
-        where
-            T: CRUDTable,
-    {
-        match rbatis::core::runtime::task::block_on(async {
-            // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
-            let page = &PageRequest::new(page_no, page_size);
-            self.rb.fetch_page_by_wrapper("", w, page).await
-        }) {
-            Ok(v) => Ok(v),
-            Err(e) => Err(e),
-        }
-    }
-
     fn update<T>(&self, modes: &mut [T]) -> Result<()>
         where
             T: CRUDTable,
@@ -148,6 +121,19 @@ impl Storage for MysqlStorage {
             self.rb.update_batch_by_id("", modes).await
         }) {
             Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+
+    fn find_instance_by_id(&self, instance_id: u64) -> Result<Option<InstanceInfo>>
+    {
+        match rbatis::core::runtime::task::block_on(async {
+            // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
+            let wrapper = self.get_wrapper().eq("id", instance_id);
+            let r: Result<Option<InstanceInfo>> = self.rb.fetch_by_wrapper("", &wrapper).await;
+            r
+        }) {
+            Ok(v) => Ok(v),
             Err(e) => Err(e),
         }
     }

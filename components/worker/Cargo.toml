@@ -14,12 +14,13 @@ grpcio = "0.8.0"
 grpcio-health = "0.8.0"
 dashmap = "4.0.2"
 num_cpus = "1"
+chrono = "0.4.19"
+slog = { version = "2.3", features = ["max_level_trace", "release_max_level_debug"] }
+slog-async = "2.3"
+async-channel = "1.6.1"
+slog-global = { version = "0.1", git = "https://github.com/breeswish/slog-global.git", rev = "d592f88e4dbba5eb439998463054f1a44fbf17b9" }
 fastjob-components-storage = { path = "../storage" }
 fastjob-proto = { git = "https://github.com/eliasyaoyc/fastjob-proto" }
 fastjob-components-log = { path = "../log" }
 fastjob-components-utils = { path = "../utils" }
 fastjob-components-scheduler = { path = "../scheduler" }
-chrono = "0.4.19"
-slog = { version = "2.3", features = ["max_level_trace", "release_max_level_debug"] }
-slog-async = "2.3"
-slog-global = { version = "0.1", git = "https://github.com/breeswish/slog-global.git", rev = "d592f88e4dbba5eb439998463054f1a44fbf17b9" }
