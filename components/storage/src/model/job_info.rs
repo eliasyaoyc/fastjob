@@ -1,9 +1,9 @@
 use crate::model::job_info::JobType::{Java, Shell};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use rbatis::crud::{CRUDTable, CRUD};
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;
-use num_enum::{TryFromPrimitive, IntoPrimitive};
 
 #[derive(TryFromPrimitive, IntoPrimitive)]
 #[repr(usize)]

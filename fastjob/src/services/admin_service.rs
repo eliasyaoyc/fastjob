@@ -3,6 +3,4 @@
 pub struct AdminService {}
 
 #[cfg(test)]
-mod tests{
-
-}
+mod tests {}

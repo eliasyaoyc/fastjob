@@ -1,7 +1,6 @@
+use rbatis::crud::CRUDTable;
 use serde::Deserialize;
 use serde::Serialize;
-use rbatis::crud::CRUDTable;
-
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ServerInfo {
@@ -22,4 +21,3 @@ impl CRUDTable for ServerInfo {
         "server_info".to_string()
     }
 }
-

@@ -1,8 +1,6 @@
 use crate::Alarm;
 
-pub struct QyWechat {
-
-}
+pub struct QyWechat {}
 
 impl QyWechat {
     pub fn new() -> Self {

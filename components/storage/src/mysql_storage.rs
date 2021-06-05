@@ -1,16 +1,16 @@
-use crate::{StorageConfig, Storage};
-use rbatis::rbatis::{Rbatis, RbatisOption};
+use crate::error::{Result, StorageError};
+use crate::model::app_info::AppInfo;
+use crate::model::instance_info::InstanceInfo;
+use crate::model::job_info::{JobInfo, JobStatus, JobTimeExpressionType, JobType};
+use crate::{Storage, StorageConfig};
 use fastjob_components_utils::component::Component;
 use rbatis::core::db::DBPoolOptions;
-use std::time::Duration;
 use rbatis::crud::{CRUDTable, CRUD};
-use crate::error::{Result, StorageError};
-use rbatis::wrapper::Wrapper;
 use rbatis::plugin::page::{Page, PageRequest};
+use rbatis::rbatis::{Rbatis, RbatisOption};
+use rbatis::wrapper::Wrapper;
 use rbatis::Error;
-use crate::model::app_info::AppInfo;
-use crate::model::job_info::{JobInfo, JobStatus, JobType, JobTimeExpressionType};
-use crate::model::instance_info::InstanceInfo;
+use std::time::Duration;
 
 pub struct MysqlStorage {
     config: StorageConfig,
@@ -61,8 +61,8 @@ impl Component for MysqlStorage {
 
 impl Storage for MysqlStorage {
     fn save<'a, T>(&self, model: T) -> Result<()>
-        where
-            T: CRUDTable,
+    where
+        T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -74,8 +74,8 @@ impl Storage for MysqlStorage {
     }
 
     fn save_batch<T>(&self, model: &[T]) -> Result<()>
-        where
-            T: CRUDTable,
+    where
+        T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -87,8 +87,8 @@ impl Storage for MysqlStorage {
     }
 
     fn delete<T>(&self, id: &T::IdType) -> Result<u64>
-        where
-            T: CRUDTable,
+    where
+        T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -100,8 +100,8 @@ impl Storage for MysqlStorage {
     }
 
     fn delete_batch<T>(&self, ids: &[<T as CRUDTable>::IdType]) -> Result<()>
-        where
-            T: CRUDTable,
+    where
+        T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -113,8 +113,8 @@ impl Storage for MysqlStorage {
     }
 
     fn update<T>(&self, modes: &mut [T]) -> Result<()>
-        where
-            T: CRUDTable,
+    where
+        T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -125,8 +125,7 @@ impl Storage for MysqlStorage {
         }
     }
 
-    fn find_instance_by_id(&self, instance_id: u64) -> Result<Option<InstanceInfo>>
-    {
+    fn find_instance_by_id(&self, instance_id: u64) -> Result<Option<InstanceInfo>> {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
             let wrapper = self.get_wrapper().eq("id", instance_id);
@@ -139,13 +138,13 @@ impl Storage for MysqlStorage {
     }
 
     fn find_all_by_current_server<T>(&self) -> Result<Option<Vec<T>>>
-        where T: CRUDTable
+    where
+        T: CRUDTable,
     {
         todo!()
     }
 
-    fn find_cron_jobs(&self, ids: &[u64], time_threshold: i64) -> Result<Vec<JobInfo>>
-    {
+    fn find_cron_jobs(&self, ids: &[u64], time_threshold: i64) -> Result<Vec<JobInfo>> {
         let wrapper = Wrapper::new(&rb.driver_type().unwrap())
             .r#in("appId", ids)
             .and()
@@ -161,14 +160,19 @@ impl Storage for MysqlStorage {
         })
     }
 
-    fn find_frequent_jobs(&self, ids: &[u64]) -> Result<Vec<JobInfo>>
-    {
+    fn find_frequent_jobs(&self, ids: &[u64]) -> Result<Vec<JobInfo>> {
         let wrapper = Wrapper::new(&rb.driver_type().unwrap())
             .r#in("appId", ids)
             .and()
             .eq("status", JobStatus::Running.into())
             .and()
-            .r#in("time_expression_type", &[JobTimeExpressionType::FixRate.into(), JobTimeExpressionType::FixDelay.into()]);
+            .r#in(
+                "time_expression_type",
+                &[
+                    JobTimeExpressionType::FixRate.into(),
+                    JobTimeExpressionType::FixDelay.into(),
+                ],
+            );
 
         rbatis::core::runtime::task::block_on(async {
             let r: Result<Vec<AppInfo>> = self.rb.fetch_list_by_wrapper("", &wrapper).await;
@@ -181,13 +185,17 @@ impl Storage for MysqlStorage {
             let py = r#"
                    select distinct job_id from instance_info
                    where job_id in #{job_id} and status in #{status}"#;
-            let r: Resul<Vec<u64>> = self.rb.py_fetch(
-                "",
-                py,
-                &serde_json::json!({
-                    "job_id": ids,
-                    "status": InstanceInfo::generalized_running_status()
-                })).await;
+            let r: Resul<Vec<u64>> = self
+                .rb
+                .py_fetch(
+                    "",
+                    py,
+                    &serde_json::json!({
+                        "job_id": ids,
+                        "status": InstanceInfo::generalized_running_status()
+                    }),
+                )
+                .await;
             r
         })
     }

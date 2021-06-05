@@ -1,9 +1,5 @@
 #[derive(Clone)]
-pub struct WorkerStatusService {
-
-}
+pub struct WorkerStatusService {}
 
 #[cfg(test)]
-mod tests{
-
-}
+mod tests {}

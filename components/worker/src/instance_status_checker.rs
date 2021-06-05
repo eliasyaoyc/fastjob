@@ -1,3 +1,1 @@
-pub struct InstanceStatusChecker {
-
-}
+pub struct InstanceStatusChecker {}

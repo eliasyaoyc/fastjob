@@ -1,8 +1,10 @@
+use crate::services::GRPC_RESPONSE_CODE;
 use crossbeam::channel::Sender;
 use fastjob_components_storage::model::job_info::JobInfo;
 use fastjob_components_storage::model::task::Task;
 use fastjob_components_storage::Storage;
 use fastjob_components_utils::component::{Component, ComponentStatus};
+use fastjob_components_utils::pair::PairCond;
 use fastjob_components_worker::worker_manager::{WorkerManager, WorkerManagerBuilder};
 use fastjob_proto::fastjob::*;
 use fastjob_proto::fastjob_grpc::FastJob;
@@ -11,8 +13,6 @@ use grpcio::{RpcContext, UnarySink};
 use std::collections::HashMap;
 use std::mem::MaybeUninit;
 use std::sync::Arc;
-use fastjob_components_utils::pair::PairCond;
-use crate::services::GRPC_RESPONSE_CODE;
 
 /// Service handles the RPC messages for the `FastJob` service.
 #[derive(Clone)]
@@ -26,10 +26,14 @@ pub struct Service<S: Storage> {
 impl<S: Storage> Service<S> {
     pub fn new(sender: Sender<Vec<JobInfo>>, pair: Arc<PairCond>) -> Self {
         Self {
-            work_mgr: WorkerManagerBuilder::builder(req.get_workerManagerConfig().clone(), sender, pair)
-                .id(req.get_workerManagerId())
-                .scope(req.get_workerManagerScope())
-                .build(),
+            work_mgr: WorkerManagerBuilder::builder(
+                req.get_workerManagerConfig().clone(),
+                sender,
+                pair,
+            )
+            .id(req.get_workerManagerId())
+            .scope(req.get_workerManagerScope())
+            .build(),
             storage: Arc::new(S),
         }
     }
@@ -66,9 +70,9 @@ impl<S: Storage> FastJob for Service<S> {
                 self.sender.clone(),
                 self.pair.clone(),
             )
-                .id(req.get_workerManagerId())
-                .scope(req.get_workerManagerScope())
-                .build();
+            .id(req.get_workerManagerId())
+            .scope(req.get_workerManagerScope())
+            .build();
 
             // Start worker manager.
             // todo. `Result` needs to be added to determine whether the execution was successful.
@@ -198,32 +202,17 @@ impl<S: Storage> FastJob for Service<S> {
     //     ctx.spawn(f)
     // }
 
-    fn entropy_metadata(
+    /// Receiver worker heartbeat request.
+    fn heart_beat(
         &mut self,
         ctx: RpcContext,
-        req: EntropyMetadataRequest,
-        sink: UnarySink<EntropyMetadataResponse>,
+        req: HeartBeatRequest,
+        sink: UnarySink<HeartBeatResponse>,
     ) {
-        let msg = format!("Hello entropy_metadata {}", req.get_nodeId());
-        let mut resp = EntropyMetadataResponse::default();
-        resp.set_message(msg);
-        let f = sink
-            .success(resp)
-            .map_err(move |e| format!("failed to reply {:?}: {:?}", req, e))
-            .map(|_| ());
-        ctx.spawn(f)
-    }
-
-    fn direct_mail_metadata(
-        &mut self,
-        ctx: RpcContext,
-        req: DirectMailMetadataRequest,
-        sink: UnarySink<DirectMailMetadataResponse>,
-    ) {
-        let msg = format!("Hello direct_mail_metadata {}", req.get_nodeId());
-        debug!("recv direct mail metadata request");
-        let mut resp = DirectMailMetadataResponse::default();
-        resp.set_message(msg);
+        let msg = format!("success.");
+        debug!("receive worker {} heartbeat request request.");
+        let mut resp = HeartBeatResponse::default();
+        self.work_mgr.resp.set_message(msg);
         let f = sink
             .success(resp)
             .map_err(move |e| format!("failed to reply {:?}: {:?}", req, e))

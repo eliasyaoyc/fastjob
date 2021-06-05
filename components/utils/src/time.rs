@@ -262,11 +262,10 @@ impl Sub<Instant> for Instant {
     }
 }
 
-
 #[cfg(test)]
-mod tests{
-    use std::time::{Instant, Duration};
+mod tests {
     use std::ops::Sub;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn t_elapsed() {

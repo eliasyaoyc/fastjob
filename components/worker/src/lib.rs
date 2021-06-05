@@ -1,50 +1,53 @@
 use std::sync::Arc;
 
-use dashmap::DashMap;
 use grpcio::{ChannelBuilder, EnvBuilder};
 
 pub use error::Result;
+use std::collections::HashMap;
 
-mod error;
-pub mod worker_manager;
+mod alarm_controller;
 mod dispatch;
+mod error;
 mod instance_status_checker;
 mod task;
+pub mod worker_manager;
 
 #[macro_use]
 extern crate fastjob_components_log;
 
+struct WorkerClusterHolder {
+    app_name: String,
+    // all worker in the cluster.
+    workers: HashMap<String, Worker>,
+}
 
 struct Worker {
-    inner: WorkerInner,
-}
-
-struct WorkerInner {
-    client: ::grpcio::Client,
-    status: WorkerStatus,
-}
-
-impl WorkerInner {
-    fn new(client: ::grpcio::Client) -> Self {
-        Self { client, status: WorkerStatus::new() }
-    }
-}
-
-struct WorkerStatus {}
-
-impl WorkerStatus {
-    fn new() -> Self {
-        Self {}
-    }
+    address: String,
+    last_active_time: i64,
+    client: Option<grpcio::Client>,
+    tag: String,
 }
 
 impl Worker {
-    pub fn build(address: &str) -> Self {
-        let client = init_grpc_client(address)?;
-        Self { inner: WorkerInner { client, status: WorkerStatus {} } }
+    pub fn new() -> Self {
+        Self {
+            address: "".to_string(),
+            last_active_time: 0,
+            client: None,
+            tag: "".to_string(),
+        }
     }
 
-    pub fn transform_status(&self) {}
+    pub fn refresh(&self) {}
+}
+
+impl WorkerClusterHolder {
+    pub fn new(app_name: String) -> Self {
+        Self {
+            app_name,
+            workers: Default::default(),
+        }
+    }
 }
 
 fn init_grpc_client(addr: &str) -> Result<::grpcio::Client> {

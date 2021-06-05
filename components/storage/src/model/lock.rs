@@ -1,7 +1,6 @@
+use rbatis::crud::CRUDTable;
 use serde::Deserialize;
 use serde::Serialize;
-use rbatis::crud::CRUDTable;
-
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Lock {
@@ -9,10 +8,9 @@ pub struct Lock {
     pub lock_name: Option<String>,
     pub max_lock_time: Option<u64>,
     pub owner_ip: Option<String>,
-    pub gmt_create: Option<u64>,
-    pub gmt_modified: Option<u64>,
+    pub gmt_create: Option<i64>,
+    pub gmt_modified: Option<i64>,
 }
-
 
 impl CRUDTable for Lock {
     type IdType = u64;
@@ -26,13 +24,8 @@ impl CRUDTable for Lock {
     }
 }
 
-
 impl Lock {
-    pub fn new(
-        lock_name: String,
-        max_lock_time: u64,
-        owner_ip: String,
-    ) -> Self {
+    pub fn new(lock_name: String, max_lock_time: u64, owner_ip: String) -> Self {
         Self {
             id: None,
             lock_name: Some(lock_name),

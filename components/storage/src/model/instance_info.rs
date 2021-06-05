@@ -2,8 +2,8 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use rbatis::crud::{CRUDTable, CRUD};
 use serde::Deserialize;
 use serde::Serialize;
-use std::fmt::Display;
 use std::borrow::{Borrow, BorrowMut};
+use std::fmt::{Debug, Display, Formatter};
 
 #[derive(TryFromPrimitive, IntoPrimitive, Eq, PartialEq, Hash)]
 #[repr(u32)]
@@ -19,11 +19,52 @@ pub enum InstanceStatus {
     Stopped = 10,
 }
 
+impl Debug for InstanceStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InstanceStatus::WaitingDispatch => {
+                write!(f, "waiting dispatch")
+            }
+            InstanceStatus::WaitingWorkerReceive => {
+                write!(f, "waiting worker receive")
+            }
+            InstanceStatus::Running => {
+                write!(f, "running")
+            }
+            InstanceStatus::Failed => {
+                write!(f, "failed")
+            }
+            InstanceStatus::Success => {
+                write!(f, "success")
+            }
+            InstanceStatus::Canceled => {
+                write!(f, "canceled")
+            }
+            InstanceStatus::Stopped => {
+                write!(f, "stopped")
+            }
+        }
+    }
+}
+
 #[derive(TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum InstanceType {
     Normal = 1,
     WorkFlow = 2,
+}
+
+impl Debug for InstanceType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InstanceType::Normal => {
+                write!(f, "normal instance.")
+            }
+            InstanceType::WorkFlow => {
+                write!(f, "workflow instance.")
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -108,7 +149,7 @@ impl InstanceInfo {
             InstanceStatus::WaitingWorkerReceive.into(),
             InstanceStatus::Running.into(),
         ]
-            .to_vec()
+        .to_vec()
     }
 
     #[inline]

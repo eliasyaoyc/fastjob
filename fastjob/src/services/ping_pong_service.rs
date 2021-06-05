@@ -1,17 +1,12 @@
-use grpcio::{RpcContext, UnarySink};
-use futures::{TryFutureExt, FutureExt};
 use crate::services::GRPC_RESPONSE_CODE;
+use futures::{FutureExt, TryFutureExt};
+use grpcio::{RpcContext, UnarySink};
 
 #[derive(Clone)]
 pub struct PingPongService {}
 
 impl PingPong for PingPongService {
-    fn ping_p(
-        &mut self,
-        ctx: RpcContext,
-        req: Ping,
-        sink: UnarySink<Pong>,
-    ) {
+    fn ping_p(&mut self, ctx: RpcContext, req: Ping, sink: UnarySink<Pong>) {
         let msg = format!("Pong");
 
         let mut resp = Pong::default();

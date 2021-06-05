@@ -1,9 +1,9 @@
+use crate::error::Result;
 use fastjob_components_storage::model::instance_info::{InstanceInfo, InstanceStatus};
 use fastjob_components_storage::model::job_info::JobInfo;
 use fastjob_components_storage::Storage;
-use std::convert::TryFrom;
-use crate::error::Result;
 use snafu::ResultExt;
+use std::convert::TryFrom;
 
 pub struct Dispatch<S: Storage> {
     task_receiver: async_channel::Receiver<(JobInfo, u64)>,
@@ -56,7 +56,12 @@ impl<S: Storage> Dispatch<S> {
                     instance_info.job_id.unwrap()
                 );
                 // process this finished instance.
-                self.process_completed_instance();
+                self.process_completed_instance(
+                    task.1,
+                    InstanceStatus::Failed,
+                    format!("can't find job by id {}", instance_info.job_id.unwrap()),
+                    instance_info.wf_instance_id,
+                );
                 return Ok(());
             }
 
@@ -64,24 +69,33 @@ impl<S: Storage> Dispatch<S> {
             info!("[Dispatcher] Start to dispatch job: {}", task.0);
             match task.0.max_instance_num {
                 Some(n) if n > 0 => {
-                    let running_count = self.storage.count_instance_by_status(
-                        instance_info.job_id.unwrap(),
-                        vec![
-                            InstanceStatus::WaitingWorkerReceive.into(),
-                            InstanceStatus::Running.into(),
-                        ],
-                    ).context()?;
+                    let running_count = self
+                        .storage
+                        .count_instance_by_status(
+                            instance_info.job_id.unwrap(),
+                            vec![
+                                InstanceStatus::WaitingWorkerReceive.into(),
+                                InstanceStatus::Running.into(),
+                            ],
+                        )
+                        .context()?;
                     if running_count >= n {
                         self.update_instance_trigger_failed(instance_info.clone());
+
                         // process this finished instance.
-                        self.process_completed_instance();
+                        self.process_completed_instance(
+                            task.1,
+                            InstanceStatus::Failed,
+                            format!("Too many instances, exceed max instance num: {}", n),
+                            instance_info.wf_instance_id,
+                        );
                         return Ok(());
                     }
                 }
                 _ => {}
             }
             // 3. Choose the most suitable worker.
-            self.choose_suitable_worker()?;
+            self.choose_suitable_worker(&task.0)?;
 
             // 4. Construct the schedule task request.
             self.construct_schedule_job()?;
@@ -95,11 +109,28 @@ impl<S: Storage> Dispatch<S> {
     }
 
     /// Process the completed instance.
-    fn process_completed_instance(&self) {}
+    fn process_completed_instance(
+        &self,
+        instance_id: u64,
+        status: InstanceStatus,
+        result: String,
+        wf_instance_id: Option<u64>,
+    ) {
+        info!(
+            "[Dispatcher] Instance {} process finished, final status: {}.",
+            instance_id, status
+        );
+
+        // alarm
+        if status == InstanceStatus::Failed {}
+    }
 
     fn update_instance_trigger_failed(&self, mut instance: InstanceInfo) -> Result<()> {
         let now = chrono::Local::now().timestamp_millis();
-        instance.result = Some(format!("Too many instances, exceed max instance num: {}", n));
+        instance.result = Some(format!(
+            "Too many instances, exceed max instance num: {}",
+            n
+        ));
         instance.actual_trigger_time = Some(now);
         instance.finished_time = Some(now);
         instance.status = Some(InstanceStatus::Failed.into());
@@ -107,7 +138,11 @@ impl<S: Storage> Dispatch<S> {
         Ok(())
     }
 
-    fn update_instance_trigger_success(&self, mut instance: InstanceInfo, worker_address: &str) -> Result<()> {
+    fn update_instance_trigger_success(
+        &self,
+        mut instance: InstanceInfo,
+        worker_address: &str,
+    ) -> Result<()> {
         let now = chrono::Local::now().timestamp_millis();
         instance.actual_trigger_time = Some(now);
         instance.task_tracker_address = Some(worker_address.to_string());
@@ -116,7 +151,8 @@ impl<S: Storage> Dispatch<S> {
         Ok(())
     }
 
-    fn choose_suitable_worker(&self) -> Result<()> {
+    /// Choose the most suitable worker.
+    fn choose_suitable_worker(&self, job_info: &JobInfo) -> Result<()> {
         Ok(())
     }
 

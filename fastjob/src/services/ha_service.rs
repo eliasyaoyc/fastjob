@@ -1,9 +1,5 @@
 #[derive(Clone)]
-pub struct HAService {
-
-}
+pub struct HAService {}
 
 #[cfg(test)]
-mod tests{
-
-}
+mod tests {}

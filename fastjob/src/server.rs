@@ -6,6 +6,7 @@ use fastjob_components_log::LogFormat;
 use fastjob_components_scheduler::Dispatcher;
 use fastjob_components_storage::{StorageBuilder, StorageConfig};
 use fastjob_components_utils::component::Component;
+use fastjob_components_utils::pair::PairCond;
 use fastjob_components_utils::{pair, Either};
 use fastjob_components_worker::worker_manager::WorkerManager;
 use fastjob_proto::fastjob_grpc::create_fast_job;
@@ -21,7 +22,6 @@ use std::str::FromStr;
 use std::sync::{Arc, Condvar};
 use std::task::{Context, Poll};
 use std::time::Duration;
-use fastjob_components_utils::pair::PairCond;
 
 const GRPC_SERVER: &str = "GRPC-SERVER";
 

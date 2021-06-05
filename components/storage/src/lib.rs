@@ -16,12 +16,12 @@ mod rbatis_test;
 mod error;
 mod mysql_storage;
 
+use crate::model::instance_info::InstanceInfo;
+use crate::model::job_info::JobInfo;
 use crate::mysql_storage::MysqlStorage;
 use error::{Result, StorageError};
 use snafu::ResultExt;
 use std::fmt::{Debug, Display};
-use crate::model::job_info::JobInfo;
-use crate::model::instance_info::InstanceInfo;
 
 #[derive(Clone, Debug)]
 pub struct StorageConfig {
@@ -52,30 +52,30 @@ impl Default for StorageConfig {
 
 pub trait Storage {
     fn save<T>(&self, t: T) -> Result<()>
-        where
-            T: CRUDTable;
+    where
+        T: CRUDTable;
 
     fn save_batch<T>(&self, t: &[T]) -> Result<()>
-        where
-            T: CRUDTable;
+    where
+        T: CRUDTable;
 
     fn delete<T>(&self, id: &T::IdType) -> Result<u64>
-        where
-            T: CRUDTable;
+    where
+        T: CRUDTable;
 
     fn delete_batch<T>(&self, ids: &[T::IdType]) -> Result<()>
-        where
-            T: CRUDTable;
+    where
+        T: CRUDTable;
 
     fn update<T>(&self, models: &mut [T]) -> Result<()>
-        where
-            T: CRUDTable;
+    where
+        T: CRUDTable;
 
     fn find_instance_by_id(&self, instance_id: u64) -> Result<Option<InstanceInfo>>;
 
     fn find_all_by_current_server<T>(&self) -> Result<Option<Vec<T>>>
-        where
-            T: CRUDTable;
+    where
+        T: CRUDTable;
 
     fn find_cron_jobs(&self, ids: &[u64], time_threshold: i64) -> Result<Vec<JobInfo>>;
 

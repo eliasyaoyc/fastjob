@@ -5,7 +5,7 @@
 //! so client will retry this request that send to another server util success unless achieved
 //! the maximum retry numbers and send has failed.
 use super::{error, Result};
-use crate::{init_grpc_client, Worker};
+use crate::{init_grpc_client, Worker, WorkerClusterHolder};
 use chrono::Local;
 use crossbeam::channel::{Receiver, Sender};
 use dashmap::DashMap;
@@ -15,13 +15,13 @@ use fastjob_components_storage::{BatisError, Storage};
 use fastjob_components_utils::component::{Component, ComponentStatus};
 use fastjob_components_utils::pair::PairCond;
 use fastjob_components_utils::sched_pool::{JobHandle, SchedPool};
-use fastjob_proto::fastjob::{WorkerManagerConfig};
+use fastjob_proto::fastjob::WorkerManagerConfig;
+use snafu::ResultExt;
 use std::fmt::{Debug, Display, Formatter};
+use std::ops::Sub;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::ops::Sub;
-use snafu::ResultExt;
 
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
@@ -33,7 +33,7 @@ pub struct WorkerManager<S: Storage> {
     address: String,
     sched_pool: SchedPool,
     storage: Arc<S>,
-    workers: DashMap<u64, Worker>,
+    workers: DashMap<u64, WorkerClusterHolder>,
     scheduler: Scheduler<S>,
 }
 
@@ -45,12 +45,11 @@ impl<S: Storage> Clone for WorkerManager<S> {
 
 impl<S: Storage> Debug for WorkerManager<S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("")
-            .field(&self.id)
-            .field(&self.address)
-            .field(&self.sched_pool)
-            .field(&self.storage)
-            .field(&self.scheduler)
+        f.debug_struct("worker-manager")
+            .field("id", &self.id)
+            .field("address", &self.address)
+            .field("workers", &self.workers)
+            .field("scheduler", &self.scheduler)
             .finish()
     }
 }
@@ -62,10 +61,7 @@ pub struct WorkerManagerBuilder<S: Storage> {
 }
 
 impl<S: Storage> WorkerManagerBuilder<S> {
-    pub fn builder(
-        config: WorkerManagerConfig,
-        storage: S,
-    ) -> Self {
+    pub fn builder(config: WorkerManagerConfig, storage: S) -> Self {
         Self {
             id: 0,
             config,
@@ -186,6 +182,17 @@ impl<S: Storage> WorkerManager<S> {
         })
     }
 
+    /// Immediately execute a schedule.
+    pub fn immediate_sched(&mut self) -> Result<()> {
+        self.sched()?;
+        Ok(())
+    }
+
+    /// Receive the worker heartbeat request.
+    pub fn worker_heartbeat(&mut self) -> Result<()> {
+        Ok(())
+    }
+
     fn is_active(&self, target_server: &str, cache: &Vec<String>) -> bool {
         if cache.contains(&target_server.to_string()) {
             return false;
@@ -210,32 +217,25 @@ impl<S: Storage> WorkerManager<S> {
 
     fn release(&self) {}
 
-    /// Manually perform a schedule.
-    pub fn manual_sched(&mut self) -> Result<()> {
-        self.sched()?;
-        Ok(())
-    }
-
     fn scheduler(&mut self) {
         match self.sched() {
             Ok(_) => {}
-            Err(e) => { error!("{}", e) }
+            Err(e) => {
+                error!("{}", e)
+            }
         }
     }
 
     fn sched(&mut self) -> Result<()> {
         info!("Schedule task start.");
         let instant = Instant::now();
-        let app_ids: Option<Vec<AppInfo>> = self.storage.find_all_by_current_server().context("")?;
+        let app_ids: Option<Vec<AppInfo>> =
+            self.storage.find_all_by_current_server().context("")?;
         if app_ids.is_none() {
             info!("[JobScheduler] current server has no app's job to schedule.");
             return Ok(());
         }
-        let ids: Vec<u64> = app_ids
-            .unwrap()
-            .iter()
-            .map(|app| app.id)
-            .collect();
+        let ids: Vec<u64> = app_ids.unwrap().iter().map(|app| app.id).collect();
 
         let ids = ids.as_slice();
 
@@ -260,7 +260,10 @@ impl<S: Storage> WorkerManager<S> {
 
         let total_cost = instant.elapsed().as_millis();
         if total_cost > SCHEDULE_INTERVAL.as_millis() {
-            warn!("[JobScheduler] The database query is using too much time {} ms", total_cost);
+            warn!(
+                "[JobScheduler] The database query is using too much time {} ms",
+                total_cost
+            );
         }
 
         Ok(())

@@ -1,6 +1,7 @@
-mod web_hook_handle;
-mod qiye_wechat_handle;
+mod alarm_config;
 mod error;
+mod qiye_wechat_handle;
+mod web_hook_handle;
 
 pub trait Alarm {
     fn on_failed(&self);

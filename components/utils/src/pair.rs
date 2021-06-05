@@ -1,6 +1,6 @@
 use parking_lot::{Condvar, Mutex};
-use std::sync::Arc;
 use std::fmt::{Debug, Formatter};
+use std::sync::Arc;
 
 pub struct PairCond {
     pub mu: Mutex<bool>,
@@ -35,5 +35,3 @@ impl PairCond {
         self.cond.notify_all();
     }
 }
-
-

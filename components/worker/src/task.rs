@@ -13,9 +13,7 @@ impl Debug for Task {
 }
 
 impl Task {
-    pub fn create_task(
-        instance_id: u64,
-    ) -> Self {
+    pub fn create_task(instance_id: u64) -> Self {
         Self { instance_id }
     }
 }

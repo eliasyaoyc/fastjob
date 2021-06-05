@@ -1,3 +1,1 @@
-pub struct AlarmConfig {
-
-}
+pub struct AlarmConfig {}

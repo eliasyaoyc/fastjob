@@ -7,8 +7,8 @@ extern crate fastjob_components_log;
 
 use std::convert::TryFrom;
 use std::str::FromStr;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use cron::Schedule;
@@ -26,12 +26,11 @@ use fastjob_components_utils::component::Component;
 
 use crate::dispatch::Dispatch;
 
-pub mod error;
-mod dispatch;
 mod container;
+pub mod error;
 mod mapreduce;
-mod workflow;
 mod rt;
+mod workflow;
 
 pub const SCHEDULE_INTERVAL: Duration = Duration::from_millis(10000);
 
@@ -42,10 +41,7 @@ pub struct Scheduler<S: Storage> {
 }
 
 impl<S: Storage> Scheduler<S> {
-    pub fn new(
-        storage: S,
-        task_sender: async_channel::Sender<(JobInfo, u64)>,
-    ) -> Self {
+    pub fn new(storage: S, task_sender: async_channel::Sender<(JobInfo, u64)>) -> Self {
         Self {
             delay_timer: DelayTimerBuilder::default().enable_status_report().build(),
             storage,
@@ -62,15 +58,22 @@ impl<S: Storage> Scheduler<S> {
         let mut chunks = ids.chunks(10);
         for chunk in chunks {
             rt::build().block_on(async move {
-                let job_infos = self.storage.find_cron_jobs(chunk, now + SCHEDULE_INTERVAL.as_millis() * 2).context("")?;
+                let job_infos = self
+                    .storage
+                    .find_cron_jobs(chunk, now + SCHEDULE_INTERVAL.as_millis() * 2)
+                    .context("")?;
                 if job_infos.is_empty() {
                     return;
                 }
-                info!("[Cron Scheduler] all cron jobs ready to scheduled: {}", job_infos);
+                info!(
+                    "[Cron Scheduler] all cron jobs ready to scheduled: {}",
+                    job_infos
+                );
 
                 // 1. write record to instance table.
                 let instances: Vec<(u64, u64)> = vec![];
-                let mut job_instance_map = std::collections::HashMap::with_capacity(job_infos.len());
+                let mut job_instance_map =
+                    std::collections::HashMap::with_capacity(job_infos.len());
                 for job in job_infos {
                     let instance_info = InstanceInfo::create(
                         job.get_id(),
@@ -78,7 +81,8 @@ impl<S: Storage> Scheduler<S> {
                         job.get_job_params(),
                         None,
                         None,
-                        job.get_next_trigger_time());
+                        job.get_next_trigger_time(),
+                    );
                     job_instance_map.insert(job.id.unwrap(), instance_info.id.unwrap());
                 }
                 self.storage.save_batch(instances.as_slice());
@@ -125,7 +129,10 @@ impl<S: Storage> Scheduler<S> {
                     return;
                 }
 
-                let job_ids = self.storage.find_frequent_instance_by_job_id(chunk).context("")?;
+                let job_ids = self
+                    .storage
+                    .find_frequent_instance_by_job_id(chunk)
+                    .context("")?;
 
                 job_infos.retain(|job| !job_ids.contains(&job.id.unwrap()));
 
@@ -133,7 +140,10 @@ impl<S: Storage> Scheduler<S> {
                     return Ok(());
                 }
 
-                info!("[Frequent Scheduler] all frequent jobs ready to scheduled: {}", job_infos);
+                info!(
+                    "[Frequent Scheduler] all frequent jobs ready to scheduled: {}",
+                    job_infos
+                );
 
                 for job in job_infos {
                     let instance_info = InstanceInfo::create(
@@ -142,9 +152,11 @@ impl<S: Storage> Scheduler<S> {
                         job.get_job_params(),
                         None,
                         None,
-                        Some(chrono::Local::now().timestamp_millis()));
+                        Some(chrono::Local::now().timestamp_millis()),
+                    );
                     self.storage.save(instance_info)?;
-                    self.dispatch.dispatch(job.clone(), instance_info.id.unwrap());
+                    self.dispatch
+                        .dispatch(job.clone(), instance_info.id.unwrap());
                 }
                 Ok(())
             })
@@ -175,13 +187,16 @@ impl<S: Storage> Scheduler<S> {
     fn refresh_workflow(&self) {}
 
     fn calculate_next_trigger_time(&self, expression: &str) -> Result<i64> {
-        let next_trigger_time = Schedule::from_str(expression)?.upcoming(Local).next().unwrap();
+        let next_trigger_time = Schedule::from_str(expression)?
+            .upcoming(Local)
+            .next()
+            .unwrap();
         Ok(next_trigger_time.timestamp_millis())
     }
 
     pub fn filter_task_record_id<P>(&self, predicate: P) -> Option<i64>
-        where
-            P: FnMut(&PublicEvent) -> bool,
+    where
+        P: FnMut(&PublicEvent) -> bool,
     {
         let mut public_events = Vec::<PublicEvent>::new();
 
@@ -210,14 +225,14 @@ impl<S: Storage> Scheduler<S> {
 
     // pub(crate) fn build_task<F>(&self, job: JobInfo, delay: i64, instance_id: u64) -> Result<Option<Task>>
     pub(crate) fn build_task<F>(&self, job: JobInfo, instance_id: u64) -> Result<Option<Task>>
-        where
-            F: Fn(TaskContext) -> Box<dyn DelayTaskHandler> + 'static + Send + Sync,
+    where
+        F: Fn(TaskContext) -> Box<dyn DelayTaskHandler> + 'static + Send + Sync,
     {
         let body = match JobType::try_from(job.processor_type.unwrap()) {
             Ok(_) => {
                 create_async_fn_body!({
-                    info!("Job {} start running",job.id.unwrap());
-                    self.task_sender.send((job.clone(),instance_id));
+                    info!("Job {} start running", job.id.unwrap());
+                    self.task_sender.send((job.clone(), instance_id));
                 })
             }
             Err(_) => {
@@ -228,11 +243,12 @@ impl<S: Storage> Scheduler<S> {
         };
 
         let frequency = match JobTimeExpressionType::try_from(job.time_expression_type.unwrap()) {
-            Ok(_) => {
-                CandyFrequency::Once(CandyCronStr("".to_string()))
-            }
+            Ok(_) => CandyFrequency::Once(CandyCronStr("".to_string())),
             Err(_) => {
-                error!("Unknown atomic number: {}", job.time_expression_type.unwrap());
+                error!(
+                    "Unknown atomic number: {}",
+                    job.time_expression_type.unwrap()
+                );
                 // i think unimportant for this error, so just log
                 return Ok(None);
             }
@@ -243,7 +259,9 @@ impl<S: Storage> Scheduler<S> {
             .set_frequency_by_candy(CandyFrequency::Once(job.time_expression.unwrap()))
             .set_maximun_parallel_runable_num(job.concurrency.unwrap_or(1) as u64)
             .spawn(body)
-            .context(error::ConstructorTaskFailed { task_id: job.id.unwrap() })?;
+            .context(error::ConstructorTaskFailed {
+                task_id: job.id.unwrap(),
+            })?;
 
         Ok(Some(task))
     }

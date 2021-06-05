@@ -1,8 +1,6 @@
 use crate::Alarm;
 
-pub struct WebHookHandle {
-
-}
+pub struct WebHookHandle {}
 
 impl WebHookHandle {
     pub fn new() -> Self {
