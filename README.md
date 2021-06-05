@@ -51,6 +51,31 @@ lock-free mind designing it and support group isolation.
 >
 > I choose the first option,because of this is easier and faster that the database is used to store information such as task execution records.
 
+![magic!](http://www.reactiongifs.com/r/mgc.gif)
+
+# Installation
+```bash
+git clone https://github.com/eliasyaoyc/fastjob
+```
+
+# Getting Started
+### Local
+
+```bash
+```
+
+### Docker
+
+```bash
+
+```
+
+# Example
+
+```rust
+
+```
+
 # To Do List
 
 - [x] lock-free scheduler.
@@ -65,24 +90,6 @@ lock-free mind designing it and support group isolation.
 - [x] java client(internal use).
 - [ ] improve that spontaneous metadata management.(current version through mysql.)
 
-# Example
-
-```rust
-
-```
-
-# Startup
-
-### Local
-
-```bash
-```
-
-### Docker
-
-```bash
-
-```
 
 # License
 
