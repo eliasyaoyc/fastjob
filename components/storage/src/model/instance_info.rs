@@ -148,8 +148,7 @@ impl InstanceInfo {
             InstanceStatus::WaitingDispatch.into(),
             InstanceStatus::WaitingWorkerReceive.into(),
             InstanceStatus::Running.into(),
-        ]
-            .to_vec()
+        ].to_vec()
     }
 
     #[inline]

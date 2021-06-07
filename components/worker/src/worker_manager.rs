@@ -10,7 +10,7 @@ use crate::{init_grpc_client, Worker, WorkerClusterHolder};
 use chrono::Local;
 use dashmap::DashMap;
 use fastjob_components_scheduler::{Scheduler, SCHEDULE_INTERVAL};
-use fastjob_components_storage::model::instance_info::{InstanceInfo, InstanceStatus};
+use fastjob_components_storage::model::instance_info::{InstanceInfo, InstanceStatus, InstanceType};
 use fastjob_components_storage::model::{app_info::AppInfo, job_info::JobInfo, lock::Lock};
 use fastjob_components_storage::{BatisError, Storage};
 use fastjob_components_utils::component::{Component, ComponentStatus};
@@ -24,7 +24,10 @@ use std::ops::Sub;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::mpsc::{channel, Receiver};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
+use std::convert::TryFrom;
+use fastjob_components_storage::model::job_info::JobTimeExpressionType;
+use fastjob_components_utils::event::Event;
 
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
@@ -39,6 +42,7 @@ pub struct WorkerManager<S: Storage> {
     workers: DashMap<u64, WorkerClusterHolder>,
     scheduler: Scheduler<S>,
     event_handler: EventHandler,
+    sender: Sender<Event>,
 }
 
 impl<S: Storage> Debug for WorkerManager<S> {
@@ -85,6 +89,7 @@ impl<S: Storage> WorkerManagerBuilder<S> {
             workers: DashMap::default(),
             scheduler: Scheduler::new(self.storage.clone(), tx.clone()),
             event_handler: EventHandler::new(rx),
+            sender: tx,
         }
     }
 }
@@ -241,8 +246,71 @@ impl<S: Storage> WorkerManager<S> {
 }
 
 impl<S: Storage> WorkerManager<S> {
+    /// Update instance status (i.e. instance execution num.)
     async fn update_status(&self, req: &ReportInstanceStatusRequest) -> Result<()> {
+        let instance_id = req.get_instanceId();
+        let job_info = self.storage.find_job_info_by_instance_id(instance_id).context("")?.unwrap();
+        let instance_info = self.storage.find_instance_by_id(instance_id).context("")?;
+        if instance_info.is_none() {
+            warn!(
+                "[WorkerManager instance status] can't find instance {}.",
+                instance_id
+            );
+            return Ok(());
+        }
 
+        // drop th expired request.
+        if req.get_reportTime() <= instance_info.unwrap().instance_id.unwrap() {
+            warn!("[WorkerManager instance status] receive the expired status report request: {}, this report will be dropped", req);
+            return Ok(());
+        }
+
+        // drop the reported data of non-target worker (split brain issues).
+        if req.get_sourceAdrdress != instance_info.unwrap().task_tracker_address.unwrap() {
+            warn!("[WorkerManager instance status] receive the other Worker report: {}, but current Worker is {}, this report will be dropped",
+                  req.get_sourceAddress,
+                  instance_info.unwrap().task_tracker_address.unwrap());
+            return Ok(());
+        }
+
+        let status = InstanceStatus::try_from(req.get_instanceStatus())?;
+        let time_expression_type = job_info.time_expression_type.unwrap();
+        instance_info.unwrap().last_report_time = req.get_reportTime();
+
+        // Frequent task don't have failure to retry, so keep running and sync the survival msg to db.
+        // Frequent task only has two cases:
+        // 1. Running
+        // 2. Failure that represent the machine on which the work works overload, so need re-choose available one.
+        if req.get_instanceStatus().unwrap().is_frequent() {
+            instance_info.unwrap().status = req.get_instanceStatus();
+            instance_info.unwrap().result = req.get_result();
+            instance_info.unwrap().running_times = req.get_totalTaskNum();
+            self.storage.update(&mut instance_info.unwrap());
+            return Ok(());
+        }
+
+        // update running time.
+        if instance_info.unwrap().status == InstanceStatus::WaitingWorkerReceive.into() {
+            instance_info.unwrap().running_times.unwrap() += 1;
+        }
+
+        instance_info.unwrap().status.unwrap() = req.get_instanceStatus();
+
+        let finished = match status {
+            InstanceStatus::Success => {
+                true
+            }
+            InstanceStatus::Failed => {
+                false
+            }
+            _ => {}
+        };
+
+        self.storage.update(&mut instance_info.unwrap());
+
+        if finished {
+            self.sender.send();
+        }
         Ok(())
     }
 

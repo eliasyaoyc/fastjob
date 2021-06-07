@@ -71,6 +71,8 @@ pub trait Storage {
         where
             T: CRUDTable;
 
+    fn find_job_info_by_instance_id(&self, instance_id: u64) -> Result<Option<JobInfo>>;
+
     fn find_instance_by_id(&self, instance_id: u64) -> Result<Option<InstanceInfo>>;
 
     fn find_all_by_current_server<T>(&self) -> Result<Option<Vec<T>>>

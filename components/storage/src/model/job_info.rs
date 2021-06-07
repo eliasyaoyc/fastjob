@@ -4,6 +4,7 @@ use rbatis::crud::{CRUDTable, CRUD};
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;
+use crate::model::task::TimeExpressionType;
 
 #[derive(TryFromPrimitive, IntoPrimitive)]
 #[repr(usize)]
@@ -97,6 +98,13 @@ impl JobInfo {
     #[inline]
     pub fn get_next_trigger_time(&self) -> Option<i64> {
         self.next_trigger_time.clone()
+    }
+}
+
+impl JobTimeExpressionType {
+    #[inline]
+    pub fn is_frequent(&self) -> bool {
+        self == JobTimeExpressionType::FixRate || self == JobTimeExpressionType::FixDelay
     }
 }
 

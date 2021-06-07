@@ -117,7 +117,7 @@ impl Storage for MysqlStorage {
         where
             T: CRUDTable,
     {
-        match rbatis::core::runtime::task::block_on(async {
+        match block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
             self.rb.update_batch_by_id("", modes).await
         }) {
@@ -126,10 +126,31 @@ impl Storage for MysqlStorage {
         }
     }
 
+    fn find_job_info_by_instance_id(&self, instance_id: u64) -> Result<Option<JobInfo>> {
+        block_on(async {
+            let py = r#"
+                   select * from instance_info ii right join
+                   job_info ji on ii.job_id = ji.id
+                   where ii.instance_id = #{instance_id}
+                   "#;
+            let r: Resul<Option<JobInfo>> = self
+                .rb
+                .py_fetch(
+                    "",
+                    py,
+                    &serde_json::json!({
+                        "instance_id": instance_id,
+                    }),
+                )
+                .await;
+            r
+        })
+    }
+
     fn find_instance_by_id(&self, instance_id: u64) -> Result<Option<InstanceInfo>> {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
-            let wrapper = self.get_wrapper().eq("id", instance_id);
+            let wrapper = self.get_wrapper().eq("instance_id", instance_id);
             let r: Result<Option<InstanceInfo>> = self.rb.fetch_by_wrapper("", &wrapper).await;
             r
         }) {
@@ -155,7 +176,7 @@ impl Storage for MysqlStorage {
             .and()
             .le("next_trigger_time", time_threshold);
 
-        rbatis::core::runtime::task::block_on(async {
+        block_on(async {
             let r: Result<Vec<AppInfo>> = self.rb.fetch_list_by_wrapper("", &wrapper).await;
             r
         })
@@ -175,14 +196,14 @@ impl Storage for MysqlStorage {
                 ],
             );
 
-        rbatis::core::runtime::task::block_on(async {
+        block_on(async {
             let r: Result<Vec<AppInfo>> = self.rb.fetch_list_by_wrapper("", &wrapper).await;
             r
         })
     }
 
     fn find_frequent_instance_by_job_id(&self, ids: &[u64]) -> Result<Vec<u64>> {
-        rbatis::core::runtime::task::block_on(async {
+        block_on(async {
             let py = r#"
                    select distinct job_id from instance_info
                    where job_id in #{job_id} and status in #{status}"#;
