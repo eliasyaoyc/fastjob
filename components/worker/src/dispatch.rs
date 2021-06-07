@@ -79,7 +79,7 @@ impl<S: Storage> Dispatch<S> {
                             ],
                         )
                         .context()?;
-                    if running_count >= n {
+                    if running_count >= n as u64 {
                         self.update_instance_trigger_failed(instance_info.clone());
 
                         // process this finished instance.

@@ -52,36 +52,38 @@ impl Default for StorageConfig {
 
 pub trait Storage {
     fn save<T>(&self, t: T) -> Result<()>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn save_batch<T>(&self, t: &[T]) -> Result<()>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn delete<T>(&self, id: &T::IdType) -> Result<u64>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn delete_batch<T>(&self, ids: &[T::IdType]) -> Result<()>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn update<T>(&self, models: &mut [T]) -> Result<()>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn find_instance_by_id(&self, instance_id: u64) -> Result<Option<InstanceInfo>>;
 
     fn find_all_by_current_server<T>(&self) -> Result<Option<Vec<T>>>
-    where
-        T: CRUDTable;
+        where
+            T: CRUDTable;
 
     fn find_cron_jobs(&self, ids: &[u64], time_threshold: i64) -> Result<Vec<JobInfo>>;
 
     fn find_frequent_jobs(&self, ids: &[u64]) -> Result<Vec<JobInfo>>;
 
     fn find_frequent_instance_by_job_id(&self, ids: &[u64]) -> Result<Vec<u64>>;
+
+    fn count_instance_by_status(&self, id: u64, status: Vec<u32>) -> Result<u64>;
 }
 
 /// Storage Builder.

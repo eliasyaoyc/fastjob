@@ -11,6 +11,7 @@ use rbatis::rbatis::{Rbatis, RbatisOption};
 use rbatis::wrapper::Wrapper;
 use rbatis::Error;
 use std::time::Duration;
+use rbatis::core::runtime::task::block_on;
 
 pub struct MysqlStorage {
     config: StorageConfig,
@@ -61,8 +62,8 @@ impl Component for MysqlStorage {
 
 impl Storage for MysqlStorage {
     fn save<'a, T>(&self, model: T) -> Result<()>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -74,8 +75,8 @@ impl Storage for MysqlStorage {
     }
 
     fn save_batch<T>(&self, model: &[T]) -> Result<()>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -87,8 +88,8 @@ impl Storage for MysqlStorage {
     }
 
     fn delete<T>(&self, id: &T::IdType) -> Result<u64>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -100,8 +101,8 @@ impl Storage for MysqlStorage {
     }
 
     fn delete_batch<T>(&self, ids: &[<T as CRUDTable>::IdType]) -> Result<()>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -113,8 +114,8 @@ impl Storage for MysqlStorage {
     }
 
     fn update<T>(&self, modes: &mut [T]) -> Result<()>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         match rbatis::core::runtime::task::block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
@@ -138,8 +139,8 @@ impl Storage for MysqlStorage {
     }
 
     fn find_all_by_current_server<T>(&self) -> Result<Option<Vec<T>>>
-    where
-        T: CRUDTable,
+        where
+            T: CRUDTable,
     {
         todo!()
     }
@@ -196,6 +197,14 @@ impl Storage for MysqlStorage {
                     }),
                 )
                 .await;
+            r
+        })
+    }
+
+    fn count_instance_by_status(&self, id: u64, status: Vec<u32>) -> Result<u64> {
+        block_on(async {
+            let wrapper = self.get_wrapper().eq("job_id", id).and().r#in("status", &status);
+            let r = self.rb.fetch_count_by_wrapper("", &wrapper).await;
             r
         })
     }
