@@ -24,12 +24,11 @@ pub struct Service<S: Storage> {
 }
 
 impl<S: Storage> Service<S> {
-    pub fn new(sender: Sender<Vec<JobInfo>>, pair: Arc<PairCond>) -> Self {
+    pub fn new(sender: Sender<Vec<JobInfo>>) -> Self {
         Self {
             work_mgr: WorkerManagerBuilder::builder(
                 req.get_workerManagerConfig().clone(),
                 sender,
-                pair,
             )
             .id(req.get_workerManagerId())
             .scope(req.get_workerManagerScope())
@@ -68,7 +67,6 @@ impl<S: Storage> FastJob for Service<S> {
             let mut worker_mgr = WorkerManagerBuilder::builder(
                 req.get_workerManagerConfig().clone(),
                 self.sender.clone(),
-                self.pair.clone(),
             )
             .id(req.get_workerManagerId())
             .scope(req.get_workerManagerScope())
@@ -211,6 +209,7 @@ impl<S: Storage> FastJob for Service<S> {
     ) {
         let msg = format!("success.");
         debug!("receive worker {} heartbeat request request.");
+        self.work_mgr.worker_heartbeat(&req);
         let mut resp = HeartBeatResponse::default();
         self.work_mgr.resp.set_message(msg);
         let f = sink

@@ -25,6 +25,7 @@ use fastjob_components_storage::Storage;
 use fastjob_components_utils::component::Component;
 
 use crate::dispatch::Dispatch;
+use std::fmt::{Debug, Formatter};
 
 mod container;
 pub mod error;
@@ -38,6 +39,14 @@ pub struct Scheduler<S: Storage> {
     delay_timer: DelayTimer,
     storage: S,
     task_sender: async_channel::Sender<(JobInfo, u64)>,
+}
+
+impl<S: Storage> Debug for Scheduler<S> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("scheduler")
+            .field("delay_timer",&self.delay_timer)
+            .finish()
+    }
 }
 
 impl<S: Storage> Scheduler<S> {
@@ -195,8 +204,8 @@ impl<S: Storage> Scheduler<S> {
     }
 
     pub fn filter_task_record_id<P>(&self, predicate: P) -> Option<i64>
-    where
-        P: FnMut(&PublicEvent) -> bool,
+        where
+            P: FnMut(&PublicEvent) -> bool,
     {
         let mut public_events = Vec::<PublicEvent>::new();
 
@@ -225,8 +234,8 @@ impl<S: Storage> Scheduler<S> {
 
     // pub(crate) fn build_task<F>(&self, job: JobInfo, delay: i64, instance_id: u64) -> Result<Option<Task>>
     pub(crate) fn build_task<F>(&self, job: JobInfo, instance_id: u64) -> Result<Option<Task>>
-    where
-        F: Fn(TaskContext) -> Box<dyn DelayTaskHandler> + 'static + Send + Sync,
+        where
+            F: Fn(TaskContext) -> Box<dyn DelayTaskHandler> + 'static + Send + Sync,
     {
         let body = match JobType::try_from(job.processor_type.unwrap()) {
             Ok(_) => {

@@ -3,6 +3,8 @@ use std::sync::Arc;
 use grpcio::{ChannelBuilder, EnvBuilder};
 
 pub use error::Result;
+use fastjob_proto::fastjob::*;
+use std::array::FixedSizeArray;
 use std::collections::HashMap;
 
 mod alarm_controller;
@@ -19,6 +21,7 @@ struct WorkerClusterHolder {
     app_name: String,
     // all worker in the cluster.
     workers: HashMap<String, Worker>,
+    containers: HashMap<u64, HashMap<String, DeployContainerInfo>>,
 }
 
 struct Worker {
@@ -38,7 +41,12 @@ impl Worker {
         }
     }
 
-    pub fn refresh(&self) {}
+    pub fn refresh(&self, heartbeat: &HeartBeatRequest) {}
+
+    #[inline]
+    pub fn last_active_time(&self) -> i64 {
+        self.last_active_time
+    }
 }
 
 impl WorkerClusterHolder {
@@ -46,7 +54,59 @@ impl WorkerClusterHolder {
         Self {
             app_name,
             workers: Default::default(),
+            containers: Default::default(),
         }
+    }
+
+    /// Update the worker status through HeartBeatRequest
+    pub fn update_worker_status(&mut self, heartbeat: &HeartBeatRequest) {
+        let address = heartbeat.get_workerAddress();
+        let heartbeat_time = heartbeat.get_heartbeatTime();
+        let worker = self.workers.entry(address).or_insert_with(|| {
+            let worker = Worker::new();
+            worker.refresh(heartbeat);
+            worker
+        });
+        if heartbeat_time < worker.last_active_time() {
+            warn!("[WorkerClusterHolder] receive the expired heartbeat from {}, server time: {}, heart time: {}",
+                  self.app_name,
+                  address,
+                  chrono::Local::now().timestamp_millis(),
+                  heartbeat_time,
+            );
+            return;
+        }
+
+        worker.refresh(heartbeat);
+
+        let container_infos = heartbeat.get_deployContainerInfo();
+        if !container_infos.is_empty() {
+            for container in container_infos {
+                self.containers
+                    .entry(container.getr_containerId())
+                    .or_insert_with(|| {
+                        let mut map = HashMap::new();
+                        map.insert(address, container);
+                        map
+                    });
+            }
+        }
+    }
+
+    pub fn workers(&self) -> &HashMap<String, Worker> {
+        &self.workers
+    }
+
+    pub fn get_container_infos(&self, contain_id: u64) -> Option<&[DeployContainerInfo]> {
+        if let Some(v) = self.containers.get(&contain_id).take() {
+            return Some(v.as_slice());
+        }
+        None
+    }
+
+    #[inline]
+    fn app_name(&self) -> String {
+        self.app_name.clone()
     }
 }
 

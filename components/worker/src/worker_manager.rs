@@ -15,7 +15,7 @@ use fastjob_components_storage::{BatisError, Storage};
 use fastjob_components_utils::component::{Component, ComponentStatus};
 use fastjob_components_utils::pair::PairCond;
 use fastjob_components_utils::sched_pool::{JobHandle, SchedPool};
-use fastjob_proto::fastjob::WorkerManagerConfig;
+use fastjob_proto::fastjob::*;
 use snafu::ResultExt;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Sub;
@@ -106,8 +106,8 @@ impl<S: Storage> Component for WorkerManager<S> {
 
 impl<S: Storage> WorkerManager<S> {
     /// Connect to worker grpc client.
-    pub fn connect(&self, addr: &str) -> Result<()> {
-        self.workers.insert(addr.into(), Worker::build(addr))?;
+    pub fn connect(&self, addr: u64) -> Result<()> {
+        self.workers.entry(addr).or_insert_with(Worker::new())?;
         Ok(())
     }
 
@@ -188,8 +188,12 @@ impl<S: Storage> WorkerManager<S> {
         Ok(())
     }
 
-    /// Receive the worker heartbeat request.
-    pub fn worker_heartbeat(&mut self) -> Result<()> {
+    /// Receive the worker heartbeat request, then update the correspond worker.
+    pub fn worker_heartbeat(&mut self, req: &HeartBeatRequest) -> Result<()> {
+        let app_id = req.get_appId();
+        let app_name = req.get_appName();
+        let mut holder = self.workers.entry(app_id).or_insert(WorkerClusterHolder::new(app_name));
+        holder.update_worker_status(req);
         Ok(())
     }
 
