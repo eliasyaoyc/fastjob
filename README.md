@@ -54,14 +54,20 @@ lock-free mind designing it and support group isolation.
 ![magic!](http://www.reactiongifs.com/r/mgc.gif)
 
 # Installation.
+
 First, make sure you have the rust env, you can check by：
+
 ```bash
 rustc --version
 ```
+
 If nothing is being output, don't worry, use the following command to download rust.
+
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
+
+Ok，everything is ready.
 
 ```bash
 1. git clone https://github.com/eliasyaoyc/fastjob
@@ -69,6 +75,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
 # Getting Started
+
 ### Local
 
 ```bash
@@ -99,7 +106,6 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 - [ ] support admin.
 - [x] java client(internal use).
 - [ ] improve that spontaneous metadata management.(current version through mysql.)
-
 
 # License
 
