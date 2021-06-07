@@ -160,7 +160,7 @@ impl<S: Storage> WorkerManager<S> {
 
             // Server is not available, try server election again, need to lock.
             let lock = Lock::new(String::from(app_id), 30000, String::from(current_server));
-            if !self.lock(lock) {
+            if !self.lock(lock).is_err() {
                 std::thread::sleep(Duration::from_millis(500));
             }
 
@@ -249,67 +249,68 @@ impl<S: Storage> WorkerManager<S> {
     /// Update instance status (i.e. instance execution num.)
     async fn update_status(&self, req: &ReportInstanceStatusRequest) -> Result<()> {
         let instance_id = req.get_instanceId();
-        let job_info = self.storage.find_job_info_by_instance_id(instance_id).context("")?.unwrap();
-        let instance_info = self.storage.find_instance_by_id(instance_id).context("")?;
-        if instance_info.is_none() {
-            warn!(
-                "[WorkerManager instance status] can't find instance {}.",
-                instance_id
-            );
-            return Ok(());
-        }
+        if let Some(job_info) = self.storage.find_job_info_by_instance_id(instance_id).context(error::WorkerStorageError)? {
+            let instance_info = self.storage.find_instance_by_id(instance_id).context(error::WorkerStorageError)?;
+            if instance_info.is_none() {
+                warn!(
+                    "[WorkerManager instance status] can't find instance {}.",
+                    instance_id
+                );
+                return Ok(());
+            }
 
-        // drop th expired request.
-        if req.get_reportTime() <= instance_info.unwrap().instance_id.unwrap() {
-            warn!("[WorkerManager instance status] receive the expired status report request: {}, this report will be dropped", req);
-            return Ok(());
-        }
+            // drop th expired request.
+            if req.get_reportTime() <= instance_info.unwrap().instance_id.unwrap() {
+                warn!("[WorkerManager instance status] receive the expired status report request: {}, this report will be dropped", req);
+                return Ok(());
+            }
 
-        // drop the reported data of non-target worker (split brain issues).
-        if req.get_sourceAdrdress != instance_info.unwrap().task_tracker_address.unwrap() {
-            warn!("[WorkerManager instance status] receive the other Worker report: {}, but current Worker is {}, this report will be dropped",
-                  req.get_sourceAddress,
-                  instance_info.unwrap().task_tracker_address.unwrap());
-            return Ok(());
-        }
+            // drop the reported data of non-target worker (split brain issues).
+            if req.get_sourceAdrdress != instance_info.unwrap().task_tracker_address.unwrap() {
+                warn!("[WorkerManager instance status] receive the other Worker report: {}, but current Worker is {}, this report will be dropped",
+                      req.get_sourceAddress,
+                      instance_info.unwrap().task_tracker_address.unwrap());
+                return Ok(());
+            }
 
-        let status = InstanceStatus::try_from(req.get_instanceStatus())?;
-        let time_expression_type = job_info.time_expression_type.unwrap();
-        instance_info.unwrap().last_report_time = req.get_reportTime();
+            let status = InstanceStatus::try_from(req.get_instanceStatus())?;
+            let time_expression_type = job_info.time_expression_type.unwrap();
+            instance_info.unwrap().last_report_time = req.get_reportTime();
 
-        // Frequent task don't have failure to retry, so keep running and sync the survival msg to db.
-        // Frequent task only has two cases:
-        // 1. Running
-        // 2. Failure that represent the machine on which the work works overload, so need re-choose available one.
-        if req.get_instanceStatus().unwrap().is_frequent() {
-            instance_info.unwrap().status = req.get_instanceStatus();
-            instance_info.unwrap().result = req.get_result();
-            instance_info.unwrap().running_times = req.get_totalTaskNum();
+            // Frequent task don't have failure to retry, so keep running and sync the survival msg to db.
+            // Frequent task only has two cases:
+            // 1. Running
+            // 2. Failure that represent the machine on which the work works overload, so need re-choose available one.
+            if req.get_instanceStatus().unwrap().is_frequent() {
+                instance_info.unwrap().status = req.get_instanceStatus();
+                instance_info.unwrap().result = req.get_result();
+                instance_info.unwrap().running_times = req.get_totalTaskNum();
+                self.storage.update(&mut instance_info.unwrap());
+                return Ok(());
+            }
+
+            // update running time.
+            if instance_info.unwrap().status == InstanceStatus::WaitingWorkerReceive.into() {
+                instance_info.unwrap().running_times.unwrap() += 1;
+            }
+
+            instance_info.unwrap().status.unwrap() = req.get_instanceStatus();
+
+            let finished = match status {
+                InstanceStatus::Success => {
+                    true
+                }
+                InstanceStatus::Failed => {
+                    false
+                }
+                _ => {}
+            };
+
             self.storage.update(&mut instance_info.unwrap());
-            return Ok(());
-        }
 
-        // update running time.
-        if instance_info.unwrap().status == InstanceStatus::WaitingWorkerReceive.into() {
-            instance_info.unwrap().running_times.unwrap() += 1;
-        }
-
-        instance_info.unwrap().status.unwrap() = req.get_instanceStatus();
-
-        let finished = match status {
-            InstanceStatus::Success => {
-                true
+            if finished {
+                self.sender.send();
             }
-            InstanceStatus::Failed => {
-                false
-            }
-            _ => {}
-        };
-
-        self.storage.update(&mut instance_info.unwrap());
-
-        if finished {
-            self.sender.send();
         }
         Ok(())
     }
@@ -328,12 +329,9 @@ impl<S: Storage> WorkerManager<S> {
         false
     }
 
-    fn lock(&self, lock: Lock) -> bool {
-        let r = self.storage.save(lock);
-        if r.is_ok() {
-            return true;
-        }
-        false
+    fn lock(&self, lock: Lock) -> Result<()> {
+        self.storage.save(lock).context(error::WorkerStorageError)?;
+        Ok(())
     }
 
     fn release(&self) {}

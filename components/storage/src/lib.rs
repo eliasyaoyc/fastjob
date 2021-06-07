@@ -13,7 +13,7 @@ use std::time::Duration;
 pub mod model;
 mod rbatis_test;
 
-mod error;
+pub mod error;
 mod mysql_storage;
 
 use crate::model::instance_info::InstanceInfo;
