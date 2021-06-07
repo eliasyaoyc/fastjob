@@ -53,9 +53,19 @@ lock-free mind designing it and support group isolation.
 
 ![magic!](http://www.reactiongifs.com/r/mgc.gif)
 
-# Installation
+# Installation.
+First, make sure you have the rust env, you can check by：
 ```bash
-git clone https://github.com/eliasyaoyc/fastjob
+rustc --version
+```
+If nothing is being output, don't worry, use the following command to download rust.
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+```bash
+1. git clone https://github.com/eliasyaoyc/fastjob
+2. cargo build
 ```
 
 # Getting Started
