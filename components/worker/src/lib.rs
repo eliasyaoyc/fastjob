@@ -4,7 +4,6 @@ use grpcio::{ChannelBuilder, EnvBuilder};
 
 pub use error::Result;
 use fastjob_proto::fastjob::*;
-use std::array::FixedSizeArray;
 use std::collections::HashMap;
 
 mod alarm_controller;
@@ -13,6 +12,8 @@ mod error;
 mod instance_status_checker;
 mod task;
 pub mod worker_manager;
+mod workflow_manager;
+mod event;
 
 #[macro_use]
 extern crate fastjob_components_log;

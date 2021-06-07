@@ -6,3 +6,4 @@ pub mod lock;
 pub mod server_info;
 pub mod task;
 pub mod user_info;
+pub mod workflow_info;

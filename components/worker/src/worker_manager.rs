@@ -5,14 +5,16 @@
 //! so client will retry this request that send to another server util success unless achieved
 //! the maximum retry numbers and send has failed.
 use super::{error, Result};
+use crate::event::event_handler::EventHandler;
 use crate::{init_grpc_client, Worker, WorkerClusterHolder};
 use chrono::Local;
-use crossbeam::channel::{Receiver, Sender};
 use dashmap::DashMap;
 use fastjob_components_scheduler::{Scheduler, SCHEDULE_INTERVAL};
+use fastjob_components_storage::model::instance_info::{InstanceInfo, InstanceStatus};
 use fastjob_components_storage::model::{app_info::AppInfo, job_info::JobInfo, lock::Lock};
 use fastjob_components_storage::{BatisError, Storage};
 use fastjob_components_utils::component::{Component, ComponentStatus};
+use fastjob_components_utils::grpc_returns::GrpcReturn;
 use fastjob_components_utils::pair::PairCond;
 use fastjob_components_utils::sched_pool::{JobHandle, SchedPool};
 use fastjob_proto::fastjob::*;
@@ -22,6 +24,7 @@ use std::ops::Sub;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tokio::sync::mpsc::{channel, Receiver};
 
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
@@ -35,12 +38,7 @@ pub struct WorkerManager<S: Storage> {
     storage: Arc<S>,
     workers: DashMap<u64, WorkerClusterHolder>,
     scheduler: Scheduler<S>,
-}
-
-impl<S: Storage> Clone for WorkerManager<S> {
-    fn clone(&self) -> Self {
-        todo!()
-    }
+    event_handler: EventHandler,
 }
 
 impl<S: Storage> Debug for WorkerManager<S> {
@@ -75,6 +73,7 @@ impl<S: Storage> WorkerManagerBuilder<S> {
     }
 
     pub fn build(self) -> WorkerManager<S> {
+        let (tx, rx) = channel(1024);
         WorkerManager {
             id: self.id,
             address: "".to_string(),
@@ -84,7 +83,8 @@ impl<S: Storage> WorkerManagerBuilder<S> {
             ),
             storage: self.storage,
             workers: DashMap::default(),
-            scheduler: Scheduler::new(self.storage.clone()),
+            scheduler: Scheduler::new(self.storage.clone(), tx.clone()),
+            event_handler: EventHandler::new(rx),
         }
     }
 }
@@ -104,6 +104,7 @@ impl<S: Storage> Component for WorkerManager<S> {
     }
 }
 
+/// used for grpc service.
 impl<S: Storage> WorkerManager<S> {
     /// Connect to worker grpc client.
     pub fn connect(&self, addr: u64) -> Result<()> {
@@ -188,12 +189,60 @@ impl<S: Storage> WorkerManager<S> {
         Ok(())
     }
 
-    /// Receive the worker heartbeat request, then update the correspond worker.
-    pub fn worker_heartbeat(&mut self, req: &HeartBeatRequest) -> Result<()> {
+    /// Handle the worker heartbeat request, then update the correspond worker.
+    pub async fn handle_worker_heartbeat(
+        &mut self,
+        req: &HeartBeatRequest,
+    ) -> Result<Option<GrpcReturn>> {
         let app_id = req.get_appId();
         let app_name = req.get_appName();
-        let mut holder = self.workers.entry(app_id).or_insert(WorkerClusterHolder::new(app_name));
+        let mut holder = self
+            .workers
+            .entry(app_id)
+            .or_insert(WorkerClusterHolder::new(app_name));
         holder.update_worker_status(req);
+        Ok(GrpcReturn::success())
+    }
+
+    /// Handle the worker report instance status request.
+    pub async fn handle_report_instance_status(
+        &self,
+        req: &ReportInstanceStatusRequest,
+    ) -> Result<Option<GrpcReturn>> {
+        // handle related workflow.
+        if req.get_wfInstanceId() > 0 && req.get_workflowContext() {
+            // workerManager.updateWorkflowContext(&req);
+        }
+
+        self.update_status(&req).await;
+
+        if InstanceInfo::finish_status().contains(req.get_instanceStatus()) {
+            return Ok(GrpcReturn::success());
+        }
+
+        Ok(GrpcReturn::empty())
+    }
+
+    /// Handle the deploy container request.
+    pub async fn handle_deploy_container(
+        &self,
+        req: &DeployContainerRequest,
+    ) -> Result<Option<GrpcReturn>> {
+        Ok(GrpcReturn::success())
+    }
+
+    /// Handle worker requests to get all processor nodes for the current task.
+    pub async fn handle_query_executor_cluster(
+        &self,
+        req: &QueryExecutorClusterRequest,
+    ) -> Result<Option<GrpcReturn>> {
+        Ok(GrpcReturn::success())
+    }
+}
+
+impl<S: Storage> WorkerManager<S> {
+    async fn update_status(&self, req: &ReportInstanceStatusRequest) -> Result<()> {
+
         Ok(())
     }
 

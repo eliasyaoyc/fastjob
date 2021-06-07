@@ -4,7 +4,6 @@ use fastjob_components_storage::model::job_info::JobInfo;
 use fastjob_components_storage::model::task::Task;
 use fastjob_components_storage::Storage;
 use fastjob_components_utils::component::{Component, ComponentStatus};
-use fastjob_components_utils::pair::PairCond;
 use fastjob_components_worker::worker_manager::{WorkerManager, WorkerManagerBuilder};
 use fastjob_proto::fastjob::*;
 use fastjob_proto::fastjob_grpc::FastJob;
@@ -30,9 +29,9 @@ impl<S: Storage> Service<S> {
                 req.get_workerManagerConfig().clone(),
                 sender,
             )
-            .id(req.get_workerManagerId())
-            .scope(req.get_workerManagerScope())
-            .build(),
+                .id(req.get_workerManagerId())
+                .scope(req.get_workerManagerScope())
+                .build(),
             storage: Arc::new(S),
         }
     }
@@ -68,9 +67,9 @@ impl<S: Storage> FastJob for Service<S> {
                 req.get_workerManagerConfig().clone(),
                 self.sender.clone(),
             )
-            .id(req.get_workerManagerId())
-            .scope(req.get_workerManagerScope())
-            .build();
+                .id(req.get_workerManagerId())
+                .scope(req.get_workerManagerScope())
+                .build();
 
             // Start worker manager.
             // todo. `Result` needs to be added to determine whether the execution was successful.
@@ -141,66 +140,7 @@ impl<S: Storage> FastJob for Service<S> {
         ctx.spawn(f)
     }
 
-    // fn register_task(
-    //     &mut self,
-    //     ctx: RpcContext,
-    //     req: RegisterTaskRequest,
-    //     sink: UnarySink<RegisterTaskResponse>,
-    // ) {
-    //     let msg = format!("Hello register_task {}", req.get_taskId());
-    //     debug!("recv register task request");
-    //     let mut resp = RegisterTaskResponse::default();
-    //
-    //     MaybeUninit::<>::uninit();
-    //     let task_manager_id = req.get_taskManagerId();
-    //     if let Some(mgr) = self.work_mgrs.get_mut(&task_manager_id) {
-    //         match mgr.get_status() {
-    //             ComponentStatus::Ready => {
-    //                 mgr.start();
-    //             }
-    //             ComponentStatus::Running => {
-    //             }
-    //             ComponentStatus::Starting => {
-    //                 // need to wait.
-    //
-    //             }
-    //             ComponentStatus::Initialized => {
-    //                 mgr.prepare();
-    //                 mgr.start()();
-    //             }
-    //             _ => {
-    //                 // return failure response.
-    //
-    //             }
-    //         }
-    //     }
-    //     resp.set_message(msg);
-    //     resp.set_code(GRPC_RESPONSE_CODE);
-    //     let f = sink
-    //         .success(resp)
-    //         .map_err(move |e| format!("failed to reply {:?}: {:?}", req, e))
-    //         .map(|_| ());
-    //     ctx.spawn(f)
-    // }
-    //
-    // fn un_register_task(
-    //     &mut self,
-    //     ctx: RpcContext,
-    //     req: UnRegisterTaskRequest,
-    //     sink: UnarySink<UnRegisterTaskResponse>,
-    // ) {
-    //     let msg = format!("Hello un_register_task {}", req.get_taskId());
-    //     debug!("recv unregister task request");
-    //     let mut resp = UnRegisterTaskResponse::default();
-    //     resp.set_message(msg);
-    //     let f = sink
-    //         .success(resp)
-    //         .map_err(move |e| format!("failed to reply {:?}: {:?}", req, e))
-    //         .map(|_| ());
-    //     ctx.spawn(f)
-    // }
-
-    /// Receiver worker heartbeat request.
+    /// Receive worker heartbeat request.
     fn heart_beat(
         &mut self,
         ctx: RpcContext,
@@ -208,9 +148,74 @@ impl<S: Storage> FastJob for Service<S> {
         sink: UnarySink<HeartBeatResponse>,
     ) {
         let msg = format!("success.");
-        debug!("receive worker {} heartbeat request request.");
-        self.work_mgr.worker_heartbeat(&req);
+        debug!("receive worker {} heartbeat request.");
+
+        self.work_mgr.handle_worker_heartbeat(&req).await;
+
         let mut resp = HeartBeatResponse::default();
+        self.work_mgr.resp.set_message(msg);
+        let f = sink
+            .success(resp)
+            .map_err(move |e| format!("failed to reply {:?}: {:?}", req, e))
+            .map(|_| ());
+        ctx.spawn(f)
+    }
+
+    /// Receive status escalation request for a task instance.
+    fn report_instance_status(
+        &mut self,
+        ctx: RpcContext,
+        req: ReportInstanceStatusRequest,
+        sink: UnarySink<ReportInstanceStatusResponse>,
+    ) {
+        let msg = format!("success.");
+        debug!("receive worker {} report instance status request.");
+
+        self.work_mgr.handle_report_instance_status(&req).await;
+
+        let mut resp = ReportInstanceStatusResponse::default();
+        self.work_mgr.resp.set_message(msg);
+        let f = sink
+            .success(resp)
+            .map_err(move |e| format!("failed to reply {:?}: {:?}", req, e))
+            .map(|_| ());
+        ctx.spawn(f)
+    }
+
+    /// Deploy contain request.
+    fn deploy_container(
+        &mut self,
+        ctx: RpcContext,
+        req: DeployContainerRequest,
+        sink: UnarySink<DeployContainerResponse>,
+    ) {
+        let msg = format!("success.");
+        debug!("receive worker {} report instance status request.");
+
+        self.work_mgr.handle_deploy_container(&req).await;
+
+        let mut resp = ReportInstanceStatusResponse::default();
+        self.work_mgr.resp.set_message(msg);
+        let f = sink
+            .success(resp)
+            .map_err(move |e| format!("failed to reply {:?}: {:?}", req, e))
+            .map(|_| ());
+        ctx.spawn(f)
+    }
+
+    /// Processes worker requests to get all processor nodes for the current task.
+    fn query_executor_cluster(
+        &mut self,
+        ctx: RpcContext,
+        req: QueryExecutorClusterRequest,
+        sink: UnarySink<QueryExecutorClusterResponse>,
+    ) {
+        let msg = format!("success.");
+        debug!("receive worker {} report instance status request.");
+
+        self.work_mgr.handle_query_executor_cluster(&req).await;
+
+        let mut resp = ReportInstanceStatusResponse::default();
         self.work_mgr.resp.set_message(msg);
         let f = sink
             .success(resp)

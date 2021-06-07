@@ -25,7 +25,9 @@ use fastjob_components_storage::Storage;
 use fastjob_components_utils::component::Component;
 
 use crate::dispatch::Dispatch;
+use fastjob_components_utils::event::Event;
 use std::fmt::{Debug, Formatter};
+use tokio::sync::mpsc::Sender;
 
 mod container;
 pub mod error;
@@ -38,19 +40,19 @@ pub const SCHEDULE_INTERVAL: Duration = Duration::from_millis(10000);
 pub struct Scheduler<S: Storage> {
     delay_timer: DelayTimer,
     storage: S,
-    task_sender: async_channel::Sender<(JobInfo, u64)>,
+    task_sender: Sender<Event>,
 }
 
 impl<S: Storage> Debug for Scheduler<S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("scheduler")
-            .field("delay_timer",&self.delay_timer)
+            .field("delay_timer", &self.delay_timer)
             .finish()
     }
 }
 
 impl<S: Storage> Scheduler<S> {
-    pub fn new(storage: S, task_sender: async_channel::Sender<(JobInfo, u64)>) -> Self {
+    pub fn new(storage: S, task_sender: Sender<Event>) -> Self {
         Self {
             delay_timer: DelayTimerBuilder::default().enable_status_report().build(),
             storage,
@@ -204,8 +206,8 @@ impl<S: Storage> Scheduler<S> {
     }
 
     pub fn filter_task_record_id<P>(&self, predicate: P) -> Option<i64>
-        where
-            P: FnMut(&PublicEvent) -> bool,
+    where
+        P: FnMut(&PublicEvent) -> bool,
     {
         let mut public_events = Vec::<PublicEvent>::new();
 
@@ -234,8 +236,8 @@ impl<S: Storage> Scheduler<S> {
 
     // pub(crate) fn build_task<F>(&self, job: JobInfo, delay: i64, instance_id: u64) -> Result<Option<Task>>
     pub(crate) fn build_task<F>(&self, job: JobInfo, instance_id: u64) -> Result<Option<Task>>
-        where
-            F: Fn(TaskContext) -> Box<dyn DelayTaskHandler> + 'static + Send + Sync,
+    where
+        F: Fn(TaskContext) -> Box<dyn DelayTaskHandler> + 'static + Send + Sync,
     {
         let body = match JobType::try_from(job.processor_type.unwrap()) {
             Ok(_) => {

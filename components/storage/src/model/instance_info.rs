@@ -23,25 +23,25 @@ impl Debug for InstanceStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             InstanceStatus::WaitingDispatch => {
-                write!(f, "waiting dispatch")
+                write!(f, "等待派发")
             }
             InstanceStatus::WaitingWorkerReceive => {
-                write!(f, "waiting worker receive")
+                write!(f, "等待 Worker 接受")
             }
             InstanceStatus::Running => {
-                write!(f, "running")
+                write!(f, "运行中")
             }
             InstanceStatus::Failed => {
-                write!(f, "failed")
+                write!(f, "失败")
             }
             InstanceStatus::Success => {
-                write!(f, "success")
+                write!(f, "成功")
             }
             InstanceStatus::Canceled => {
-                write!(f, "canceled")
+                write!(f, "取消")
             }
             InstanceStatus::Stopped => {
-                write!(f, "stopped")
+                write!(f, "手动停止")
             }
         }
     }
@@ -149,7 +149,17 @@ impl InstanceInfo {
             InstanceStatus::WaitingWorkerReceive.into(),
             InstanceStatus::Running.into(),
         ]
-        .to_vec()
+            .to_vec()
+    }
+
+    #[inline]
+    pub fn finish_status() -> Vec<u32> {
+        vec![
+            InstanceStatus::Failed.into(),
+            InstanceStatus::Success.into(),
+            InstanceStatus::Canceled.into(),
+            InstanceStatus::Stopped.into(),
+        ].to_vec()
     }
 
     #[inline]

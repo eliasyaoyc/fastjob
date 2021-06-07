@@ -1,12 +1,13 @@
 pub mod component;
 pub mod id_generator;
-pub mod pair;
 pub mod sched_pool;
 pub mod signal;
 pub mod signal_handler;
 pub mod time;
 pub mod toml_parser;
 mod yatp_pool;
+pub mod grpc_returns;
+pub mod event;
 
 /// Represents a value of one of two possible types(a more generic Result.)
 #[derive(Debug, Clone)]
