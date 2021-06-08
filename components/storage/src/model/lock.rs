@@ -5,9 +5,9 @@ use serde::Serialize;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Lock {
     pub id: Option<u64>,
-    pub lock_name: Option<String>,
+    pub lock_name: Option<&'static str>,
     pub max_lock_time: Option<u64>,
-    pub owner_ip: Option<String>,
+    pub owner_ip: Option<&'static str>,
     pub gmt_create: Option<i64>,
     pub gmt_modified: Option<i64>,
 }
@@ -25,7 +25,7 @@ impl CRUDTable for Lock {
 }
 
 impl Lock {
-    pub fn new(lock_name: String, max_lock_time: u64, owner_ip: String) -> Self {
+    pub fn new(lock_name: &str, max_lock_time: u64, owner_ip: &str) -> Self {
         Self {
             id: None,
             lock_name: Some(lock_name),

@@ -5,9 +5,9 @@ use serde::Serialize;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AppInfo {
     pub id: Option<u64>,
-    pub app_name: Option<String>,
-    pub password: Option<String>,
-    pub current_server: Option<String>,
+    pub app_name: Option<&'static str>,
+    pub password: Option<&'static str>,
+    pub current_server: Option<&'static str>,
     pub gmt_create: Option<i64>,
     pub gmt_modified: Option<i64>,
 }

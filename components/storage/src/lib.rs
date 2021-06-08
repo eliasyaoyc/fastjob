@@ -25,10 +25,10 @@ use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Clone)]
 pub struct StorageConfig {
-    pub address: String,
-    pub username: String,
-    pub password: String,
-    pub database: String,
+    pub address: &'static str,
+    pub username: &'static str,
+    pub password: &'static str,
+    pub database: &'static str,
     pub max_connections: u32,
     pub min_connections: u32,
     pub connect_timeout: u64,
@@ -53,10 +53,10 @@ impl Debug for StorageConfig {
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
-            address: "".to_string(),
-            username: "".to_string(),
-            password: "".to_string(),
-            database: "".to_string(),
+            address: "",
+            username: "",
+            password: "",
+            database: "",
             max_connections: 0,
             min_connections: 0,
             connect_timeout: 0,

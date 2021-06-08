@@ -5,7 +5,7 @@ use serde::Serialize;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ServerInfo {
     pub id: Option<u64>,
-    pub ip: Option<String>,
+    pub ip: Option<&'static str>,
     pub gmt_create: Option<u64>,
     pub gmt_modified: Option<u64>,
 }

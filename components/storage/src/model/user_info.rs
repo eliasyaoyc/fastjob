@@ -5,12 +5,12 @@ use serde::Serialize;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UserInfo {
     pub id: Option<u64>,
-    pub user_name: Option<String>,
-    pub password: Option<String>,
-    pub phone: Option<String>,
-    pub email: Option<String>,
-    pub web_hook: Option<String>,
-    pub extra: Option<String>,
+    pub user_name: Option<&'static str>,
+    pub password: Option<&'static str>,
+    pub phone: Option<&'static str>,
+    pub email: Option<&'static str>,
+    pub web_hook: Option<&'static str>,
+    pub extra: Option<&'static str>,
     pub gmt_create: Option<i64>,
     pub gmt_modified: Option<i64>,
 }

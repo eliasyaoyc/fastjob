@@ -8,7 +8,7 @@ pub type Result<T, E = rbatis::Error> = std::result::Result<T, E>;
 #[snafu(visibility = "pub(crate)")]
 pub enum StorageError {
     #[snafu(display("Storage saved failure; msg: {}, error : {}", msg, source))]
-    SaveError { source: rbatis::Error, msg: String },
+    SaveError { source: rbatis::Error, msg: &'static str },
     // #[snafu(display("Storage batch saved failure; msg : {}, error : {}", msg.display(), source))]
     // SaveBatchError { msg: T, source: rbatis::Error },
     // #[snafu(display("Storage deleted failure; msg: {}, error : {}", msg.display(), source))]

@@ -144,7 +144,7 @@ impl<S: Storage> WorkerManager<S> {
     /// And check it whether alive,if dead the current service tries to usurp the throne.
     ///
     /// Thread Safety: Distributed-Lock.
-    pub fn lookup(&self, current_server: &str, app_id: u64) -> Result<&str> {
+    pub fn lookup(&self, current_server: &str, app_id: &str) -> Result<&str> {
         let cache = &Vec::<String>::new();
         if self.address.eq(current_server) {
             return Ok(current_server);
@@ -158,7 +158,7 @@ impl<S: Storage> WorkerManager<S> {
 
             if rs.is_none() {
                 return Err(error::WorkerNotRegistered {
-                    app_name_or_id: app_id.to_string(),
+                    app_name_or_id: app_id,
                 });
             }
             let name = rs.as_ref().unwrap().app_name.unwrap();
@@ -168,7 +168,7 @@ impl<S: Storage> WorkerManager<S> {
             }
 
             // Server is not available, try server election again, need to lock.
-            let lock = Lock::new(String::from(app_id), 30000, String::from(current_server));
+            let lock = Lock::new(app_id, 30000, current_server);
             if !self.lock(lock).is_err() {
                 std::thread::sleep(Duration::from_millis(500));
             }
@@ -188,7 +188,7 @@ impl<S: Storage> WorkerManager<S> {
             self.storage.save(rs.unwrap());
             info!(
                 "[Election] server {} become the new server fo appId {}",
-                current_server.to_string(),
+                current_server,
                 app_id
             )
         }
@@ -257,9 +257,7 @@ impl<S: Storage> WorkerManager<S> {
             if job_info.app_id.unwrap() != app_id {
                 return Err(error::PermissionDenied);
             }
-            if let Some(holder) = self.workers.take().get(&app_id) {
-
-            }
+            if let Some(holder) = self.workers.take().get(&app_id) {}
         }
         warn!("[WorkerManager] don't find job (job id = {}) or available workers (app id = {}).", job_id, app_id);
         Ok(GrpcReturn::empty())
