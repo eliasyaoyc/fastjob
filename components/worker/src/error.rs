@@ -25,4 +25,7 @@ pub enum WorkerManagerError {
 
     #[snafu(display("WorkerManager event handle encounter error: {}.", source))]
     EventHandlerFailed { source: EventHandlerError },
+
+    #[snafu(display("Permission Denied"))]
+    PermissionDenied,
 }

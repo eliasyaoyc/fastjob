@@ -5,14 +5,13 @@ use grpcio::{ChannelBuilder, EnvBuilder};
 pub use error::Result;
 use fastjob_proto::fastjob::*;
 use std::collections::HashMap;
+use std::cmp::Ordering;
 
 mod alarm_controller;
 mod dispatch;
 mod error;
 mod instance_status_checker;
-mod task;
 pub mod worker_manager;
-mod workflow_manager;
 mod event;
 
 #[macro_use]
@@ -30,6 +29,26 @@ struct Worker {
     last_active_time: i64,
     client: Option<grpcio::Client>,
     tag: String,
+}
+
+impl Eq for Worker {}
+
+impl PartialEq for Worker {
+    fn eq(&self, other: &Self) -> bool {
+        self.address.eq(&other.address)
+    }
+}
+
+impl Ord for Worker {
+    fn cmp(&self, other: &Self) -> Ordering {
+
+    }
+}
+
+impl PartialOrd for Worker {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl Worker {
@@ -94,13 +113,14 @@ impl WorkerClusterHolder {
         }
     }
 
-    pub fn workers(&self) -> &HashMap<String, Worker> {
-        &self.workers
+    /// Returns the most suitable worker and if have worker unavailable that will remove it.
+    pub fn get_suitable_worker(&self) -> Option<&[Worker]> {
+        None
     }
 
     pub fn get_container_infos(&self, contain_id: u64) -> Option<&[DeployContainerInfo]> {
         if let Some(v) = self.containers.get(&contain_id).take() {
-            return Some(v.as_slice());
+            // return Some(v.as_slice());
         }
         None
     }

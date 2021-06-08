@@ -3,7 +3,6 @@ use crate::model::app_info::AppInfo;
 use crate::model::instance_info::InstanceInfo;
 use crate::model::job_info::{JobInfo, JobStatus, JobTimeExpressionType, JobType};
 use crate::{Storage, StorageConfig};
-use fastjob_components_utils::component::Component;
 use rbatis::core::db::DBPoolOptions;
 use rbatis::crud::{CRUDTable, CRUD};
 use rbatis::plugin::page::{Page, PageRequest};
@@ -12,10 +11,19 @@ use rbatis::wrapper::Wrapper;
 use rbatis::Error;
 use std::time::Duration;
 use rbatis::core::runtime::task::block_on;
+use std::fmt::{Debug, Formatter};
 
 pub struct MysqlStorage {
     config: StorageConfig,
     rb: Rbatis,
+}
+
+impl Debug for MysqlStorage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("mysql-storage")
+            .field("storageConfig", &self.config)
+            .finish()
+    }
 }
 
 impl Clone for MysqlStorage {
@@ -33,10 +41,8 @@ impl MysqlStorage {
         let rb = Rbatis::new_with_opt(opt);
         Self { config, rb }
     }
-}
 
-impl Component for MysqlStorage {
-    fn start(&mut self) {
+    fn init(&mut self) {
         rbatis::core::runtime::task::block_on(async {
             // rb.link("mysql://root:yaoyichen52@localhost:3306/neptune")
             //     .await
@@ -49,14 +55,10 @@ impl Component for MysqlStorage {
 
             let derive_url = format!(
                 "mysql://{}:{}@{}/{}",
-                self.config.username, self.config.password, self.config.addr, self.config.database
+                self.config.username, self.config.password, self.config.address, self.config.database
             );
             self.rb.link_opt(&derive_url, &link_opt).await.unwrap();
         });
-    }
-
-    fn stop(&mut self) {
-        unreachable!()
     }
 }
 
@@ -129,8 +131,8 @@ impl Storage for MysqlStorage {
     fn find_job_info_by_instance_id(&self, instance_id: u64) -> Result<Option<JobInfo>> {
         block_on(async {
             let py = r#"
-                   select * from instance_info ii right join
-                   job_info ji on ii.job_id = ji.id
+                   select * from job_info ji left join
+                   instance_info ii on ii.job_id = ji.id
                    where ii.instance_id = #{instance_id}
                    "#;
             let r: Resul<Option<JobInfo>> = self
@@ -147,8 +149,14 @@ impl Storage for MysqlStorage {
         })
     }
 
+    fn find_job_info_by_id(&self, id: u64) -> Result<Option<JobInfo>> {
+        let wrapper = self.get_wrapper().eq("id", id);
+        let r: Result<Option<JobInfo>> = self.rb.fetch_by_wrapper("", &wrapper).await;
+        r
+    }
+
     fn find_instance_by_id(&self, instance_id: u64) -> Result<Option<InstanceInfo>> {
-        match rbatis::core::runtime::task::block_on(async {
+        match block_on(async {
             // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
             let wrapper = self.get_wrapper().eq("instance_id", instance_id);
             let r: Result<Option<InstanceInfo>> = self.rb.fetch_by_wrapper("", &wrapper).await;

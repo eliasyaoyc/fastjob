@@ -4,22 +4,31 @@ use fastjob_components_storage::model::job_info::JobInfo;
 use fastjob_components_storage::Storage;
 use snafu::ResultExt;
 use std::convert::TryFrom;
+use tokio::sync::mpsc::Receiver;
+use std::cell::RefCell;
+use dashmap::DashMap;
+use crate::WorkerClusterHolder;
 
 pub struct Dispatch<S: Storage> {
-    task_receiver: async_channel::Receiver<(JobInfo, u64)>,
+    task_receiver: Receiver<(JobInfo, u64)>,
     storage: S,
+    workers: RefCell<DashMap<u64, WorkerClusterHolder>>,
 }
 
 impl<S: Storage> Dispatch<S> {
-    pub fn new(task_receiver: async_channel::Receiver<(JobInfo, u64)>, storage: S) -> Self {
+    pub fn new(
+        task_receiver: Receiver<(JobInfo, u64)>,
+        storage: S,
+        workers: RefCell<DashMap<u64, WorkerClusterHolder>>) -> Self {
         Self {
             task_receiver,
             storage,
+            workers,
         }
     }
 
-    pub async fn event_loop(&self) {
-        while let Ok(task) = self.task_receiver.recv().await {
+    pub async fn event_loop(&mut self) {
+        while let Some(task) = self.task_receiver.recv().await {
             info!(
                 "[Dispatch Event-Loop] receive task id: {}",
                 task.0.id.unwrap()

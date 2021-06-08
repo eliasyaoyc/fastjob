@@ -21,11 +21,11 @@ use crate::model::job_info::JobInfo;
 use crate::mysql_storage::MysqlStorage;
 use error::{Result, StorageError};
 use snafu::ResultExt;
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug, Display, Formatter};
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct StorageConfig {
-    pub addr: String,
+    pub address: String,
     pub username: String,
     pub password: String,
     pub database: String,
@@ -35,10 +35,25 @@ pub struct StorageConfig {
     pub idle_timeout: u64,
 }
 
+impl Debug for StorageConfig {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("storageConfig")
+            .field("address", &self.address)
+            .field("username", &self.username)
+            .field("password", &self.password)
+            .field("database", &self.database)
+            .field("maxConnections", &self.max_connections)
+            .field("minConnections", &self.min_connections)
+            .field("connectTimeout", &self.connect_timeout)
+            .field("idleTimeout", &self.idle_timeout)
+            .finish()
+    }
+}
+
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
-            addr: "".to_string(),
+            address: "".to_string(),
             username: "".to_string(),
             password: "".to_string(),
             database: "".to_string(),
@@ -72,6 +87,8 @@ pub trait Storage {
             T: CRUDTable;
 
     fn find_job_info_by_instance_id(&self, instance_id: u64) -> Result<Option<JobInfo>>;
+
+    fn find_job_info_by_id(&self, instance_id: u64) -> Result<Option<JobInfo>>;
 
     fn find_instance_by_id(&self, instance_id: u64) -> Result<Option<InstanceInfo>>;
 

@@ -52,7 +52,7 @@ impl<S: Storage> Debug for Scheduler<S> {
 }
 
 impl<S: Storage> Scheduler<S> {
-    pub fn new(storage: S, task_sender: Sender<Event>) -> Self {
+    pub fn new(storage: S, task_sender: Sender<(JobInfo, u64)>) -> Self {
         Self {
             delay_timer: DelayTimerBuilder::default().enable_status_report().build(),
             storage,
@@ -206,8 +206,8 @@ impl<S: Storage> Scheduler<S> {
     }
 
     pub fn filter_task_record_id<P>(&self, predicate: P) -> Option<i64>
-    where
-        P: FnMut(&PublicEvent) -> bool,
+        where
+            P: FnMut(&PublicEvent) -> bool,
     {
         let mut public_events = Vec::<PublicEvent>::new();
 
@@ -236,8 +236,8 @@ impl<S: Storage> Scheduler<S> {
 
     // pub(crate) fn build_task<F>(&self, job: JobInfo, delay: i64, instance_id: u64) -> Result<Option<Task>>
     pub(crate) fn build_task<F>(&self, job: JobInfo, instance_id: u64) -> Result<Option<Task>>
-    where
-        F: Fn(TaskContext) -> Box<dyn DelayTaskHandler> + 'static + Send + Sync,
+        where
+            F: Fn(TaskContext) -> Box<dyn DelayTaskHandler> + 'static + Send + Sync,
     {
         let body = match JobType::try_from(job.processor_type.unwrap()) {
             Ok(_) => {

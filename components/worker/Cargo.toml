@@ -24,3 +24,4 @@ fastjob-proto = { git = "https://github.com/eliasyaoyc/fastjob-proto" }
 fastjob-components-log = { path = "../log" }
 fastjob-components-utils = { path = "../utils" }
 fastjob-components-scheduler = { path = "../scheduler" }
+lazy_static = "1.4.0"

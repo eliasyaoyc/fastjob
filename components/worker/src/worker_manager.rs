@@ -13,21 +13,20 @@ use fastjob_components_scheduler::{Scheduler, SCHEDULE_INTERVAL};
 use fastjob_components_storage::model::instance_info::{InstanceInfo, InstanceStatus, InstanceType};
 use fastjob_components_storage::model::{app_info::AppInfo, job_info::JobInfo, lock::Lock};
 use fastjob_components_storage::{BatisError, Storage};
-use fastjob_components_utils::component::{Component, ComponentStatus};
 use fastjob_components_utils::grpc_returns::GrpcReturn;
-use fastjob_components_utils::pair::PairCond;
 use fastjob_components_utils::sched_pool::{JobHandle, SchedPool};
 use fastjob_proto::fastjob::*;
 use snafu::ResultExt;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Sub, Add};
-use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use std::convert::TryFrom;
 use fastjob_components_storage::model::job_info::JobTimeExpressionType;
 use fastjob_components_utils::event::{Event, CompletedInstance};
+use std::cell::RefCell;
+use crate::dispatch::Dispatch;
 
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
@@ -39,10 +38,11 @@ pub struct WorkerManager<S: Storage> {
     address: String,
     sched_pool: SchedPool,
     storage: Arc<S>,
-    workers: DashMap<u64, WorkerClusterHolder>,
+    workers: RefCell<DashMap<u64, WorkerClusterHolder>>,
     scheduler: Scheduler<S>,
     event_handler: EventHandler,
     sender: Sender<Event>,
+    dispatch: Dispatch<S>,
 }
 
 impl<S: Storage> Debug for WorkerManager<S> {
@@ -52,6 +52,7 @@ impl<S: Storage> Debug for WorkerManager<S> {
             .field("address", &self.address)
             .field("workers", &self.workers)
             .field("scheduler", &self.scheduler)
+            .field("dispatch", &self.dispatch)
             .finish()
     }
 }
@@ -78,6 +79,8 @@ impl<S: Storage> WorkerManagerBuilder<S> {
 
     pub fn build(self) -> WorkerManager<S> {
         let (tx, rx) = channel(1024);
+        let (sched_tx, sched_rx) = channel(1024);
+        let workers = RefCell::new(DashMap::default());
         WorkerManager {
             id: self.id,
             address: "".to_string(),
@@ -86,17 +89,26 @@ impl<S: Storage> WorkerManagerBuilder<S> {
                 WORKER_MANAGER_SCHED_POOL_NAME,
             ),
             storage: self.storage,
-            workers: DashMap::default(),
-            scheduler: Scheduler::new(self.storage.clone(), tx.clone()),
+            workers,
+            scheduler: Scheduler::new(self.storage.clone(),
+                                      sched_tx.clone()),
             event_handler: EventHandler::new(rx),
             sender: tx,
+            dispatch: Dispatch::new(
+                sched_rx,
+                self.storage.clone(),
+                workers.clone(),
+            ),
         }
     }
 }
 
-impl<S: Storage> Component for WorkerManager<S> {
-    fn start(&mut self) {
-        // Start scheduler thread.
+/// used for grpc service.
+impl<S: Storage> WorkerManager<S> {
+    async fn start(&mut self) {
+        // First Start dispatch.
+        self.dispatch.event_loop().await;
+        // Then start scheduler thread.
         self.sched_pool.schedule_at_fixed_rate(
             self.scheduler(),
             WORKER_MANAGER_FETCH_INIT_TIME,
@@ -107,10 +119,7 @@ impl<S: Storage> Component for WorkerManager<S> {
     fn stop(&mut self) {
         self.scheduler.shutdown();
     }
-}
 
-/// used for grpc service.
-impl<S: Storage> WorkerManager<S> {
     /// Connect to worker grpc client.
     pub fn connect(&self, addr: u64) -> Result<()> {
         self.workers.entry(addr).or_insert_with(Worker::new())?;
@@ -228,12 +237,12 @@ impl<S: Storage> WorkerManager<S> {
         Ok(GrpcReturn::empty())
     }
 
-    /// Handle the deploy container request.
+    /// Handle the deploy contain request.
     pub async fn handle_deploy_container(
         &self,
         req: &DeployContainerRequest,
     ) -> Result<Option<GrpcReturn>> {
-        Ok(GrpcReturn::success())
+        unreachable!()
     }
 
     /// Handle worker requests to get all processor nodes for the current task.
@@ -241,7 +250,19 @@ impl<S: Storage> WorkerManager<S> {
         &self,
         req: &QueryExecutorClusterRequest,
     ) -> Result<Option<GrpcReturn>> {
-        Ok(GrpcReturn::success())
+        let job_id = req.get_jobId();
+        let app_id = req.get_appId();
+
+        if let Some(job_info) = self.storage.find_job_info_by_id().context(error::WorkerStorageError)? {
+            if job_info.app_id.unwrap() != app_id {
+                return Err(error::PermissionDenied);
+            }
+            if let Some(holder) = self.workers.take().get(&app_id) {
+
+            }
+        }
+        warn!("[WorkerManager] don't find job (job id = {}) or available workers (app id = {}).", job_id, app_id);
+        Ok(GrpcReturn::empty())
     }
 }
 
@@ -301,7 +322,7 @@ impl<S: Storage> WorkerManager<S> {
                                   req.get_instanceId(),
                                   job_info.instance_retry_num.unwrap(),
                             );
-                            instance_info.expected_trigger_time = Some(chrono::Local::now().timestamp_millis().add(Duration::from_secs(10)))
+                            instance_info.expected_trigger_time = Some(chrono::Local::now().timestamp_millis().add(Duration::from_secs(10)));
                             instance_info.status = Some(InstanceStatus::WaitingDispatch.into());
                             false
                         } else {

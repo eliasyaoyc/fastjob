@@ -80,7 +80,7 @@ fn main() {
 
 pub fn overwrite_config_with_cmd_args(opt: Opt) -> Result<Config> {
     let config = StorageConfig {
-        addr: "localhost:3306".to_string(),
+        address: "localhost:3306".to_string(),
         username: "root".to_string(),
         password: "yaoyichen52".to_string(),
         database: "neptune".to_string(),
