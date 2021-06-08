@@ -20,14 +20,14 @@ use fastjob_components_utils::sched_pool::{JobHandle, SchedPool};
 use fastjob_proto::fastjob::*;
 use snafu::ResultExt;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::Sub;
+use std::ops::{Sub, Add};
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use std::convert::TryFrom;
 use fastjob_components_storage::model::job_info::JobTimeExpressionType;
-use fastjob_components_utils::event::Event;
+use fastjob_components_utils::event::{Event, CompletedInstance};
 
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
@@ -219,7 +219,7 @@ impl<S: Storage> WorkerManager<S> {
             // workerManager.updateWorkflowContext(&req);
         }
 
-        self.update_status(&req).await;
+        self.update_status(&req).await?;
 
         if InstanceInfo::finish_status().contains(req.get_instanceStatus()) {
             return Ok(GrpcReturn::success());
@@ -250,66 +250,87 @@ impl<S: Storage> WorkerManager<S> {
     async fn update_status(&self, req: &ReportInstanceStatusRequest) -> Result<()> {
         let instance_id = req.get_instanceId();
         if let Some(job_info) = self.storage.find_job_info_by_instance_id(instance_id).context(error::WorkerStorageError)? {
-            let instance_info = self.storage.find_instance_by_id(instance_id).context(error::WorkerStorageError)?;
-            if instance_info.is_none() {
+            if let Some(mut instance_info) = self.storage.find_instance_by_id(instance_id).context(error::WorkerStorageError)? {
+
+                // drop th expired request.
+                if req.get_reportTime() <= instance_info.instance_id.unwrap() {
+                    warn!("[WorkerManager instance status] receive the expired status report request: {}, this report will be dropped", req);
+                    return Ok(());
+                }
+
+                // drop the reported data of non-target worker (split brain issues).
+                if req.get_sourceAdrdress != instance_info.task_tracker_address.unwrap() {
+                    warn!("[WorkerManager instance status] receive the other Worker report: {}, but current Worker is {}, this report will be dropped",
+                          req.get_sourceAddress,
+                          instance_info.task_tracker_address.unwrap());
+                    return Ok(());
+                }
+
+                let status = InstanceStatus::try_from(req.get_instanceStatus())?;
+                instance_info.last_report_time = Some(req.get_reportTime());
+
+                // Frequent task don't have failure to retry, so keep running and sync the survival msg to db.
+                // Frequent task only has two cases:
+                // 1. Running
+                // 2. Failure that represent the machine on which the work works overload, so need re-choose available one.
+                if JobTimeExpressionType::try_from(job_info.time_expression_type.unwrap())?.is_frequent() {
+                    instance_info.status = Some(req.get_instanceStatus());
+                    instance_info.result = Some(req.get_result());
+                    instance_info.running_times = Some(req.get_result());
+                    self.storage.update(&mut instance_info);
+                    return Ok(());
+                }
+
+                // update running time.
+                if instance_info.status.unwrap() == InstanceStatus::WaitingWorkerReceive.into() {
+                    instance_info.running_times.unwrap() += 1;
+                }
+
+                instance_info.status = Some(req.get_instanceStatus());
+
+                let finished = match status {
+                    InstanceStatus::Success => {
+                        instance_info.result = Some(req.get_result());
+                        instance_info.finished_time = Some(chrono::Local::now().timestamp_millis());
+                        true
+                    }
+                    InstanceStatus::Failed => {
+                        // satisfied retry.
+                        if instance_info.running_times.unwrap() <= job_info.instance_retry_num.unwrap() as u64 {
+                            info!("[WorkerManager instance status] execute instance id: {} failed then will retry, retry num: {}",
+                                  req.get_instanceId(),
+                                  job_info.instance_retry_num.unwrap(),
+                            );
+                            instance_info.expected_trigger_time = Some(chrono::Local::now().timestamp_millis().add(Duration::from_secs(10)))
+                            instance_info.status = Some(InstanceStatus::WaitingDispatch.into());
+                            false
+                        } else {
+                            // exceed instance max retry num.
+                            instance_info.result = Some(req.get_result());
+                            instance_info.finished_time = Some(chrono::Local::now().timestamp_millis());
+                            warn!("[WorkerManager instance status] instance id: {} exceeded the maximum retry num that can't retry", req.get_instanceId());
+                            true
+                        }
+                    }
+                    _ => { false }
+                };
+
+                self.storage.update(&mut instance_info);
+
+                if finished {
+                    self.sender.send(Event::InstanceCompletedEvent(CompletedInstance {
+                        instance_id: req.get_instanceId(),
+                        wf_instance_id: req.get_wfInstanceId(),
+                        status: req.get_instanceStatus(),
+                        result: req.get_result(),
+                    }));
+                }
+            } else {
                 warn!(
                     "[WorkerManager instance status] can't find instance {}.",
                     instance_id
                 );
                 return Ok(());
-            }
-
-            // drop th expired request.
-            if req.get_reportTime() <= instance_info.unwrap().instance_id.unwrap() {
-                warn!("[WorkerManager instance status] receive the expired status report request: {}, this report will be dropped", req);
-                return Ok(());
-            }
-
-            // drop the reported data of non-target worker (split brain issues).
-            if req.get_sourceAdrdress != instance_info.unwrap().task_tracker_address.unwrap() {
-                warn!("[WorkerManager instance status] receive the other Worker report: {}, but current Worker is {}, this report will be dropped",
-                      req.get_sourceAddress,
-                      instance_info.unwrap().task_tracker_address.unwrap());
-                return Ok(());
-            }
-
-            let status = InstanceStatus::try_from(req.get_instanceStatus())?;
-            let time_expression_type = job_info.time_expression_type.unwrap();
-            instance_info.unwrap().last_report_time = req.get_reportTime();
-
-            // Frequent task don't have failure to retry, so keep running and sync the survival msg to db.
-            // Frequent task only has two cases:
-            // 1. Running
-            // 2. Failure that represent the machine on which the work works overload, so need re-choose available one.
-            if req.get_instanceStatus().unwrap().is_frequent() {
-                instance_info.unwrap().status = req.get_instanceStatus();
-                instance_info.unwrap().result = req.get_result();
-                instance_info.unwrap().running_times = req.get_totalTaskNum();
-                self.storage.update(&mut instance_info.unwrap());
-                return Ok(());
-            }
-
-            // update running time.
-            if instance_info.unwrap().status == InstanceStatus::WaitingWorkerReceive.into() {
-                instance_info.unwrap().running_times.unwrap() += 1;
-            }
-
-            instance_info.unwrap().status.unwrap() = req.get_instanceStatus();
-
-            let finished = match status {
-                InstanceStatus::Success => {
-                    true
-                }
-                InstanceStatus::Failed => {
-                    false
-                }
-                _ => {}
-            };
-
-            self.storage.update(&mut instance_info.unwrap());
-
-            if finished {
-                self.sender.send();
             }
         }
         Ok(())
