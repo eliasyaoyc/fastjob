@@ -6,6 +6,7 @@ pub use error::Result;
 use fastjob_proto::fastjob::*;
 use std::collections::HashMap;
 use std::cmp::Ordering;
+use fastjob_components_storage::model::job_info::JobInfo;
 
 mod alarm_controller;
 mod dispatch;
@@ -18,17 +19,18 @@ mod event;
 extern crate fastjob_components_log;
 
 struct WorkerClusterHolder {
-    app_name: String,
+    app_name: &'static str,
     // all worker in the cluster.
-    workers: HashMap<String, Worker>,
-    containers: HashMap<u64, HashMap<String, DeployContainerInfo>>,
+    workers: HashMap<&'static str, Worker>,
+    containers: HashMap<u64, HashMap<&'static str, DeployContainerInfo>>,
 }
 
 struct Worker {
-    address: String,
+    address: &'static str,
     last_active_time: i64,
     client: Option<grpcio::Client>,
-    tag: String,
+    tag: &'static str,
+    indicators: WorkerIndicators,
 }
 
 impl Eq for Worker {}
@@ -40,9 +42,7 @@ impl PartialEq for Worker {
 }
 
 impl Ord for Worker {
-    fn cmp(&self, other: &Self) -> Ordering {
-
-    }
+    fn cmp(&self, other: &Self) -> Ordering {}
 }
 
 impl PartialOrd for Worker {
@@ -54,23 +54,55 @@ impl PartialOrd for Worker {
 impl Worker {
     pub fn new() -> Self {
         Self {
-            address: "".to_string(),
+            address: "",
             last_active_time: 0,
             client: None,
-            tag: "".to_string(),
+            tag: "",
+            indicators: WorkerIndicators::new(),
         }
     }
 
-    pub fn refresh(&self, heartbeat: &HeartBeatRequest) {}
+    fn refresh(&mut self, heartbeat: &HeartBeatRequest) {
+        self.address = heartbeat.get_workerAddress();
+        self.last_active_time = heartbeat.get_heartbeatTime();
+        self.tag = heartbeat.get_tag();
+        self.indicators = heartbeat.get_indicators();
+    }
+
+    fn is_available(&self, job_info: &JobInfo) -> bool {
+        // 1. determine job whether specified the worker.
+        if let Some(d_workers) = &job_info.designated_workers {
+            let workers: Vec<_> = d_workers.split(',').collect();
+            if workers.contains(&self.address) || workers.contains(&self.tag) {
+                return true;
+            }
+        }
+
+        // 2. determine the worker whether expired.
+        if chrono::Local::now().timestamp_millis() < self.last_active_time {
+            warn!("[Worker - {}] unreported heartbeat for a long time.", self.address);
+            return true;
+        }
+        // 3. determine the worker indicators whether is satisfied.
+        let available_memory = self.indicators.get_jvmMaxMemory() - self.indicators.get_jvmUsedMemory();
+        let available_disk = self.indicators.get_diskTotal() - self.indicators.get_diskUsed();
+        let available_core = self.indicators.get_cpuProcessors() - self.indicators.get_cpuLoad();
+        if available_memory < job_info.min_memory_space.unwrap()
+            || available_disk < job_info.min_disk_space.unwrap()
+            || available_core < job_info.min_cpu_cores.unwrap() {
+            return true;
+        }
+        false
+    }
 
     #[inline]
-    pub fn last_active_time(&self) -> i64 {
+    fn last_active_time(&self) -> i64 {
         self.last_active_time
     }
 }
 
 impl WorkerClusterHolder {
-    pub fn new(app_name: String) -> Self {
+    pub fn new(app_name: &'static str) -> Self {
         Self {
             app_name,
             workers: Default::default(),
@@ -83,7 +115,7 @@ impl WorkerClusterHolder {
         let address = heartbeat.get_workerAddress();
         let heartbeat_time = heartbeat.get_heartbeatTime();
         let worker = self.workers.entry(address).or_insert_with(|| {
-            let worker = Worker::new();
+            let mut worker = Worker::new();
             worker.refresh(heartbeat);
             worker
         });
@@ -114,8 +146,25 @@ impl WorkerClusterHolder {
     }
 
     /// Returns the most suitable worker and if have worker unavailable that will remove it.
-    pub fn get_suitable_worker(&self) -> Option<&[Worker]> {
-        None
+    pub fn get_suitable_worker(&mut self, job_info: &JobInfo) -> Option<&[Worker]> {
+        if self.workers.is_empty() {
+            return None;
+        }
+        let mut worker: &[_] = self.workers.clone().values().collect();
+        worker.retain(|_, &v| v.is_available(job_info));
+        worker.sort();
+
+
+        if worker.is_empty() {
+            return None;
+        }
+
+        if let Some(count) = job_info.max_worker_count {
+            if count > 0 && worker.len() > count {
+                worker.split_at(count);
+            }
+        }
+        Some(worker)
     }
 
     pub fn get_container_infos(&self, contain_id: u64) -> Option<&[DeployContainerInfo]> {
@@ -126,8 +175,8 @@ impl WorkerClusterHolder {
     }
 
     #[inline]
-    fn app_name(&self) -> String {
-        self.app_name.clone()
+    fn app_name(&self) -> &str {
+        self.app_name
     }
 }
 
