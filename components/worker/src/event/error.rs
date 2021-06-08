@@ -8,12 +8,9 @@ pub enum EventHandlerError {
     #[snafu(display("WorkerManager storage error."))]
     WorkerStorageError,
 
-    #[snafu(display(
-    "App name or id {} is not registered, please register the app first.",
-    app_name_or_id
-    ))]
-    WorkerNotRegistered { app_name_or_id: String },
+    #[snafu(display("App name or id {} is not registered, please register the app first.", app_name_or_id))]
+    WorkerNotRegistered { app_name_or_id: &'static str },
 
     #[snafu(display("server {} lookup failed", server_ip))]
-    LookupFail { server_ip: String },
+    LookupFail { server_ip: &'static str },
 }

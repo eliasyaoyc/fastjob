@@ -1,4 +1,3 @@
-pub mod component;
 pub mod id_generator;
 pub mod sched_pool;
 pub mod signal;

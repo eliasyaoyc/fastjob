@@ -35,7 +35,7 @@ const RETRY_TIMES: u32 = 3;
 
 pub struct WorkerManager<S: Storage> {
     id: i64,
-    address: String,
+    address: &'static str,
     sched_pool: SchedPool,
     storage: Arc<S>,
     workers: RefCell<DashMap<u64, WorkerClusterHolder>>,
@@ -83,7 +83,7 @@ impl<S: Storage> WorkerManagerBuilder<S> {
         let workers = RefCell::new(DashMap::default());
         WorkerManager {
             id: self.id,
-            address: "".to_string(),
+            address: "",
             sched_pool: SchedPool::new(
                 WORKER_MANAGER_SCHED_POOL_NUM_SIZE,
                 WORKER_MANAGER_SCHED_POOL_NAME,
@@ -136,7 +136,7 @@ impl<S: Storage> WorkerManager<S> {
         }
 
         Err(error::WorkerNotRegistered {
-            app_name_or_id: String::from(app_name),
+            app_name_or_id: app_name,
         })
     }
 
@@ -145,7 +145,7 @@ impl<S: Storage> WorkerManager<S> {
     ///
     /// Thread Safety: Distributed-Lock.
     pub fn lookup(&self, current_server: &str, app_id: &str) -> Result<&str> {
-        let cache = &Vec::<String>::new();
+        let cache = &vec![];
         if self.address.eq(current_server) {
             return Ok(current_server);
         }
@@ -183,7 +183,7 @@ impl<S: Storage> WorkerManager<S> {
                 return Ok(cur);
             }
             // Usurpation, native as current server.
-            rs.take().unwrap().current_server = Some(current_server.to_string());
+            rs.take().unwrap().current_server = Some(current_server);
             rs.take().unwrap().gmt_modified = Some(Local::now().timestamp_millis());
             self.storage.save(rs.unwrap());
             info!(
@@ -355,8 +355,8 @@ impl<S: Storage> WorkerManager<S> {
         Ok(())
     }
 
-    fn is_active(&self, target_server: &str, cache: &Vec<String>) -> bool {
-        if cache.contains(&target_server.to_string()) {
+    fn is_active(&self, target_server: &str, cache: &[&str]) -> bool {
+        if cache.contains(&target_server) {
             return false;
         }
         // send hello request to target server.

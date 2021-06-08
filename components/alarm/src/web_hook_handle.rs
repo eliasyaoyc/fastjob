@@ -8,7 +8,7 @@ impl WebHookHandle {
     }
 }
 impl Alarm for WebHookHandle {
-    fn on_failed(&self) {
+    async fn on_failed(&self) {
         todo!()
     }
 }

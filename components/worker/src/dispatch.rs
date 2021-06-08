@@ -122,7 +122,7 @@ impl<S: Storage> Dispatch<S> {
         &self,
         instance_id: u64,
         status: InstanceStatus,
-        result: String,
+        result: &'static str,
         wf_instance_id: Option<u64>,
     ) {
         info!(
@@ -154,7 +154,7 @@ impl<S: Storage> Dispatch<S> {
     ) -> Result<()> {
         let now = chrono::Local::now().timestamp_millis();
         instance.actual_trigger_time = Some(now);
-        instance.task_tracker_address = Some(worker_address.to_string());
+        instance.task_tracker_address = Some(worker_address);
         instance.status = Some(InstanceStatus::WaitingWorkerReceive.into());
         self.storage.update(instance.as_mut_ref())?;
         Ok(())

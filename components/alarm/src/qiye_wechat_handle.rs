@@ -9,7 +9,7 @@ impl QyWechat {
 }
 
 impl Alarm for QyWechat {
-    fn on_failed(&self) {
+    async fn on_failed(&self) {
         todo!()
     }
 }

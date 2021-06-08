@@ -4,7 +4,7 @@ mod qiye_wechat_handle;
 mod web_hook_handle;
 
 pub trait Alarm {
-    fn on_failed(&self);
+    async fn on_failed(&self);
 }
 
 #[cfg(test)]
