@@ -40,7 +40,7 @@ pub const SCHEDULE_INTERVAL: Duration = Duration::from_millis(10000);
 pub struct Scheduler<S: Storage> {
     delay_timer: DelayTimer,
     storage: S,
-    task_sender: Sender<Event>,
+    task_sender: Sender<(JobInfo, u64)>,
 }
 
 impl<S: Storage> Debug for Scheduler<S> {

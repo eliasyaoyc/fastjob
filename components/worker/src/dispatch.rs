@@ -1,13 +1,14 @@
 use crate::error::Result;
+use crate::WorkerClusterHolder;
+use dashmap::DashMap;
 use fastjob_components_storage::model::instance_info::{InstanceInfo, InstanceStatus};
-use fastjob_components_storage::model::job_info::JobInfo;
+use fastjob_components_storage::model::job_info::{JobInfo, JobStatus, JobTimeExpressionType};
+use fastjob_components_storage::model::task::TimeExpressionType;
 use fastjob_components_storage::Storage;
 use snafu::ResultExt;
+use std::cell::RefCell;
 use std::convert::TryFrom;
 use tokio::sync::mpsc::Receiver;
-use std::cell::RefCell;
-use dashmap::DashMap;
-use crate::WorkerClusterHolder;
 
 pub struct Dispatch<S: Storage> {
     task_receiver: Receiver<(JobInfo, u64)>,
@@ -19,7 +20,8 @@ impl<S: Storage> Dispatch<S> {
     pub fn new(
         task_receiver: Receiver<(JobInfo, u64)>,
         storage: S,
-        workers: RefCell<DashMap<u64, WorkerClusterHolder>>) -> Self {
+        workers: RefCell<DashMap<u64, WorkerClusterHolder>>,
+    ) -> Self {
         Self {
             task_receiver,
             storage,
@@ -33,10 +35,10 @@ impl<S: Storage> Dispatch<S> {
                 "[Dispatch Event-Loop] receive task id: {}",
                 task.0.id.unwrap()
             );
-            self.dispatch(&task).await;
+            self.dispatch(task).await;
         }
     }
-    pub async fn dispatch(&self, task: &(JobInfo, u64)) -> Result<()> {
+    pub async fn dispatch(&self, task: (JobInfo, u64)) -> Result<()> {
         debug!("[Dispatch] start dispatch: {}", task.0.id.unwrap());
         // 1. check the current instance whether canceled.
         if let Some(instance_info) = self.storage.find_instance_by_id(task.1).context("")? {
@@ -68,7 +70,7 @@ impl<S: Storage> Dispatch<S> {
                 self.process_completed_instance(
                     task.1,
                     InstanceStatus::Failed,
-                    format!("can't find job by id {}", instance_info.job_id.unwrap()),
+                    format!("can't find job by id {}", instance_info.job_id.unwrap()).as_str(),
                     instance_info.wf_instance_id,
                 );
                 return Ok(());
@@ -95,7 +97,7 @@ impl<S: Storage> Dispatch<S> {
                         self.process_completed_instance(
                             task.1,
                             InstanceStatus::Failed,
-                            format!("Too many instances, exceed max instance num: {}", n),
+                            format!("Too many instances, exceed max instance num: {}", n).as_str(),
                             instance_info.wf_instance_id,
                         );
                         return Ok(());
@@ -136,10 +138,8 @@ impl<S: Storage> Dispatch<S> {
 
     fn update_instance_trigger_failed(&self, mut instance: InstanceInfo) -> Result<()> {
         let now = chrono::Local::now().timestamp_millis();
-        instance.result = Some(format!(
-            "Too many instances, exceed max instance num: {}",
-            n
-        ));
+        instance.result =
+            Some(format!("Too many instances, exceed max instance num: {}", n).as_str());
         instance.actual_trigger_time = Some(now);
         instance.finished_time = Some(now);
         instance.status = Some(InstanceStatus::Failed.into());
@@ -173,7 +173,29 @@ impl<S: Storage> Dispatch<S> {
         Ok(())
     }
 
-    fn redispatch(&self) {}
+    pub async fn redispatch(&self, mut instance: InstanceInfo) -> Result<()> {
+        if let Some(job) = self
+            .storage
+            .find_job_info_by_instance_id(instance.instance_id.unwrap())
+            .context(error::WorkerStorageError)?
+        {
+            if !job.status.unwrap() == JobStatus::Running
+                || JobTimeExpressionType::try_from(job.time_expression_type)?.is_frequent()
+                || instance.running_times.unwrap() >= job.instance_retry_num.unwrap()
+            {
+                instance.status = Some(InstanceStatus::Failed.into());
+                instance.finished_time = Some(chrono::Local::now().timestamp_millis());
+                // only this case will happen.
+                instance.result = Some("worker report timeout, maybe Worker down");
+                instance.running_times = Some(instance.running_times.unwrap().wrapping_add(1));
+                self.storage.save(instance);
+                return Ok(());
+            }
+            // redispatch.
+            self.dispatch((job, instance.instance_id.unwrap())).await?;
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

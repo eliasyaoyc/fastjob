@@ -167,6 +167,18 @@ impl Storage for MysqlStorage {
         }
     }
 
+    fn find_instance_by_ids(&self, instance_id: &[u64]) -> Result<Option<Vec<InstanceInfo>>> {
+        match block_on(async {
+            // fast_log::init_log("requests.log", 1000, log::Level::Info, None, true);
+            let wrapper = self.get_wrapper().eq("instance_id", instance_id);
+            let r: Result<Option<Vec<InstanceInfo>>> = self.rb.fetch_by_wrapper("", &wrapper).await;
+            r
+        }) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(e),
+        }
+    }
+
     fn find_all_app_id_by_current_server(&self, current_server: &str) -> Result<Option<&[u64]>> {
         block_on(async {
             let py = r#"

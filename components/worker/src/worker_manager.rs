@@ -5,28 +5,30 @@
 //! so client will retry this request that send to another server util success unless achieved
 //! the maximum retry numbers and send has failed.
 use super::{error, Result};
+use crate::dispatch::Dispatch;
 use crate::event::event_handler::EventHandler;
 use crate::{init_grpc_client, Worker, WorkerClusterHolder};
 use chrono::Local;
 use dashmap::DashMap;
 use fastjob_components_scheduler::{Scheduler, SCHEDULE_INTERVAL};
-use fastjob_components_storage::model::instance_info::{InstanceInfo, InstanceStatus, InstanceType};
+use fastjob_components_storage::model::instance_info::{
+    InstanceInfo, InstanceStatus, InstanceType,
+};
+use fastjob_components_storage::model::job_info::JobTimeExpressionType;
 use fastjob_components_storage::model::{app_info::AppInfo, job_info::JobInfo, lock::Lock};
 use fastjob_components_storage::{BatisError, Storage};
+use fastjob_components_utils::event::{CompletedInstance, Event};
 use fastjob_components_utils::grpc_returns::GrpcReturn;
 use fastjob_components_utils::sched_pool::{JobHandle, SchedPool};
 use fastjob_proto::fastjob::*;
 use snafu::ResultExt;
+use std::cell::RefCell;
+use std::convert::TryFrom;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::{Sub, Add};
+use std::ops::{Add, Sub};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use std::convert::TryFrom;
-use fastjob_components_storage::model::job_info::JobTimeExpressionType;
-use fastjob_components_utils::event::{Event, CompletedInstance};
-use std::cell::RefCell;
-use crate::dispatch::Dispatch;
 
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
@@ -34,6 +36,11 @@ const WORKER_MANAGER_INIT_TIME: Duration = Duration::from_secs(2);
 const INSTANCE_STATUS_INTERVAL: Duration = Duration::from_millis(10000);
 const CLEAN_INTERVAL: Duration = Duration::from_millis(10000);
 const RETRY_TIMES: u32 = 3;
+const MAX_BATCH_NUM: usize = 10;
+const DISPATCH_TIMEOUT_MS: u64 = 30000;
+const RECEIVE_TIMEOUT_MS: u64 = 60000;
+const RUNNING_TIMEOUT_MS: u64 = 60000;
+const WORKFLOW_WAITING_TIMEOUT_MS: u64 = 60000;
 
 pub struct WorkerManager<S: Storage> {
     id: i64,
@@ -92,15 +99,10 @@ impl<S: Storage> WorkerManagerBuilder<S> {
             ),
             storage: self.storage,
             workers,
-            scheduler: Scheduler::new(self.storage.clone(),
-                                      sched_tx.clone()),
-            event_handler: EventHandler::new(rx),
+            scheduler: Scheduler::new(self.storage.clone(), sched_tx.clone()),
+            event_handler: EventHandler::new(rx, tx.clone()),
             sender: tx,
-            dispatch: Dispatch::new(
-                sched_rx,
-                self.storage.clone(),
-                workers.clone(),
-            ),
+            dispatch: Dispatch::new(sched_rx, self.storage.clone(), workers.clone()),
         }
     }
 }
@@ -205,8 +207,7 @@ impl<S: Storage> WorkerManager<S> {
             self.storage.save(rs.unwrap());
             info!(
                 "[Election] server {} become the new server fo appId {}",
-                current_server,
-                app_id
+                current_server, app_id
             )
         }
         Err(error::LookupFail {
@@ -228,7 +229,8 @@ impl<S: Storage> WorkerManager<S> {
         let app_id = req.get_appId();
         let app_name = req.get_appName();
         let mut holder = self
-            .workers.borrow()
+            .workers
+            .borrow()
             .entry(app_id)
             .or_insert(WorkerClusterHolder::new(app_name));
         holder.update_worker_status(req);
@@ -270,13 +272,20 @@ impl<S: Storage> WorkerManager<S> {
         let job_id = req.get_jobId();
         let app_id = req.get_appId();
 
-        if let Some(job_info) = self.storage.find_job_info_by_id().context(error::WorkerStorageError)? {
+        if let Some(job_info) = self
+            .storage
+            .find_job_info_by_id()
+            .context(error::WorkerStorageError)?
+        {
             if job_info.app_id.unwrap() != app_id {
                 return Err(error::PermissionDenied);
             }
             if let Some(holder) = self.workers.take().get(&app_id) {}
         }
-        warn!("[WorkerManager] don't find job (job id = {}) or available workers (app id = {}).", job_id, app_id);
+        warn!(
+            "[WorkerManager] don't find job (job id = {}) or available workers (app id = {}).",
+            job_id, app_id
+        );
         Ok(GrpcReturn::empty())
     }
 }
@@ -285,9 +294,16 @@ impl<S: Storage> WorkerManager<S> {
     /// Update instance status (i.e. instance execution num.)
     async fn update_status(&self, req: &ReportInstanceStatusRequest) -> Result<()> {
         let instance_id = req.get_instanceId();
-        if let Some(job_info) = self.storage.find_job_info_by_instance_id(instance_id).context(error::WorkerStorageError)? {
-            if let Some(mut instance_info) = self.storage.find_instance_by_id(instance_id).context(error::WorkerStorageError)? {
-
+        if let Some(job_info) = self
+            .storage
+            .find_job_info_by_instance_id(instance_id)
+            .context(error::WorkerStorageError)?
+        {
+            if let Some(mut instance_info) = self
+                .storage
+                .find_instance_by_id(instance_id)
+                .context(error::WorkerStorageError)?
+            {
                 // drop th expired request.
                 if req.get_reportTime() <= instance_info.instance_id.unwrap() {
                     warn!("[WorkerManager instance status] receive the expired status report request: {}, this report will be dropped", req);
@@ -309,7 +325,9 @@ impl<S: Storage> WorkerManager<S> {
                 // Frequent task only has two cases:
                 // 1. Running
                 // 2. Failure that represent the machine on which the work works overload, so need re-choose available one.
-                if JobTimeExpressionType::try_from(job_info.time_expression_type.unwrap())?.is_frequent() {
+                if JobTimeExpressionType::try_from(job_info.time_expression_type.unwrap())?
+                    .is_frequent()
+                {
                     instance_info.status = Some(req.get_instanceStatus());
                     instance_info.result = Some(req.get_result());
                     instance_info.running_times = Some(req.get_result());
@@ -332,34 +350,42 @@ impl<S: Storage> WorkerManager<S> {
                     }
                     InstanceStatus::Failed => {
                         // satisfied retry.
-                        if instance_info.running_times.unwrap() <= job_info.instance_retry_num.unwrap() as u64 {
+                        if instance_info.running_times.unwrap()
+                            <= job_info.instance_retry_num.unwrap() as u64
+                        {
                             info!("[WorkerManager instance status] execute instance id: {} failed then will retry, retry num: {}",
                                   req.get_instanceId(),
                                   job_info.instance_retry_num.unwrap(),
                             );
-                            instance_info.expected_trigger_time = Some(chrono::Local::now().timestamp_millis().add(Duration::from_secs(10)));
+                            instance_info.expected_trigger_time = Some(
+                                chrono::Local::now()
+                                    .timestamp_millis()
+                                    .add(Duration::from_secs(10)),
+                            );
                             instance_info.status = Some(InstanceStatus::WaitingDispatch.into());
                             false
                         } else {
                             // exceed instance max retry num.
                             instance_info.result = Some(req.get_result());
-                            instance_info.finished_time = Some(chrono::Local::now().timestamp_millis());
+                            instance_info.finished_time =
+                                Some(chrono::Local::now().timestamp_millis());
                             warn!("[WorkerManager instance status] instance id: {} exceeded the maximum retry num that can't retry", req.get_instanceId());
                             true
                         }
                     }
-                    _ => { false }
+                    _ => false,
                 };
 
                 self.storage.update(&mut instance_info);
 
                 if finished {
-                    self.sender.send(Event::InstanceCompletedEvent(CompletedInstance {
-                        instance_id: req.get_instanceId(),
-                        wf_instance_id: req.get_wfInstanceId(),
-                        status: req.get_instanceStatus(),
-                        result: req.get_result(),
-                    }));
+                    self.sender
+                        .send(Event::InstanceCompletedEvent(CompletedInstance {
+                            instance_id: req.get_instanceId(),
+                            wf_instance_id: req.get_wfInstanceId(),
+                            status: req.get_instanceStatus(),
+                            result: req.get_result(),
+                        }));
                 }
             } else {
                 warn!(
@@ -391,17 +417,6 @@ impl<S: Storage> WorkerManager<S> {
         Ok(())
     }
 
-    /// Release related resource.
-    fn release_resource(&self) {
-        // 1. release the local cache.
-        // 2. release disk space.
-        // 3. delete history records.
-    }
-
-    fn check_instance_status(&self) {
-        let app_ids = self.storage.find_all_app_id_by_current_server().context(error::WorkerStorageError)?;
-    }
-
     fn scheduler(&mut self) {
         match self.sched() {
             Ok(_) => {}
@@ -415,7 +430,10 @@ impl<S: Storage> WorkerManager<S> {
         info!("Schedule task start.");
         let instant = Instant::now();
 
-        let app_ids = self.storage.find_all_app_id_by_current_server().context(error::WorkerStorageError)?;
+        let app_ids = self
+            .storage
+            .find_all_app_id_by_current_server()
+            .context(error::WorkerStorageError)?;
 
         match app_ids {
             None => {
@@ -457,6 +475,82 @@ impl<S: Storage> WorkerManager<S> {
     /// Clean the useless workers.
     fn clean_useless_worker(&mut self, app_ids: &[u64]) {
         self.workers.retain(|k, _| app_ids.contains(&k));
+    }
+
+    /// Release related resource.
+    fn release_resource(&self) {
+        // 1. release the local cache.
+        // 2. release disk space.
+        // 3. delete history records.
+    }
+
+    fn check_instance_status(&self) {
+        let begin = Instant::now();
+        let app_ids = self
+            .storage
+            .find_all_app_id_by_current_server()
+            .context(error::WorkerStorageError)?;
+        match app_ids {
+            None => {
+                info!("[InstanceStatusChecker] current server hasn't job to check.");
+                return;
+            }
+            Some(ids) => {
+                self.check_instance(ids.clone()).await;
+                self.check_workflow(ids.clone()).await;
+            }
+        }
+        info!(
+            "[InstanceStatusChecker] using {} sec.",
+            begin.elapsed().as_secs()
+        );
+    }
+
+    /// Check the status of instance and retry if any exception is found, e.g:
+    /// 1. WAITING_DISPATCH timeout: server down before writing delay_time but not scheduling.
+    /// 2. WAITING_WORKER_RECEIVE timeout: worker not receive successfully due to network.
+    /// 3. RUNNING timeout: worker down, disconnect the heartbeat from server.
+    async fn check_instance(&self, ids: &[u64]) {
+        for chunk in ids.chunks(MAX_BATCH_NUM) {
+            if let Some(instances) = self
+                .storage
+                .find_instance_by_ids(chunk)
+                .context(error::WorkerStorageError)?
+            {
+                for instance in instances {
+                    match InstanceStatus::try_from(instance.status.unwrap())? {
+                        InstanceStatus::WaitingDispatch
+                        if instance.expected_trigger_time.unwrap()
+                            < chrono::Local::now().timestamp_millis() - DISPATCH_TIMEOUT_MS =>
+                            {
+                                warn!("[InstanceStatusChecker] find instance {} which is not triggered as expected.", instance.instance_id.unwrap());
+                                self.dispatch
+                                    .redispatch(instance.clone())
+                                    .await;
+                            }
+                        InstanceStatus::WaitingWorkerReceive
+                        if instance.actual_trigger_time.unwrap()
+                            < chrono::Local::now().timestamp_millis() - RECEIVE_TIMEOUT_MS =>
+                            {
+                                warn!("[InstanceStatusChecker] find instance {} didn't receive any reply from worker, try to dispatch.", instance.instance_id.unwrap());
+                                self.dispatch.redispatch(instance.instance_id.unwrap()).await;
+                            }
+                        InstanceStatus::Running
+                        if instance.gmt_modified.unwrap() < chrono::Local::now().timestamp_millis() - RUNNING_TIMEOUT_MS => {
+                            warn!("[InstanceStatusChecker] find instance {} has not report status for a long time.", instance.instance_id.unwrap());
+                            self.dispatch.redispatch(instance.instance_id.unwrap()).await;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    /// Check the status of workflow instance.
+    async fn check_workflow(&self, ids: &[u64]) {
+        unreachable!()
+        // for chunk in ids.chunks(10) {}
     }
 }
 

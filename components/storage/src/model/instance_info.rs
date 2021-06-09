@@ -84,7 +84,7 @@ pub struct InstanceInfo {
     pub finished_time: Option<i64>,
     pub last_report_time: Option<i64>,
     pub task_tracker_address: Option<&'static str>,
-    pub running_times: Option<u64>,
+    pub running_times: Option<usize>,
     pub gmt_create: Option<i64>,
     pub gmt_modified: Option<i64>,
 }

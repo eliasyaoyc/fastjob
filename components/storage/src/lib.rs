@@ -92,6 +92,8 @@ pub trait Storage {
 
     fn find_instance_by_id(&self, instance_id: u64) -> Result<Option<InstanceInfo>>;
 
+    fn find_instance_by_ids(&self, instance_id: &[u64]) -> Result<Option<Vec<InstanceInfo>>>;
+
     fn find_all_app_id_by_current_server(&self, current_server: &str) -> Result<Option<&[u64]>>;
 
     fn find_cron_jobs(&self, ids: &[u64], time_threshold: i64) -> Result<Vec<JobInfo>>;
