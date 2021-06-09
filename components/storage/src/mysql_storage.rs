@@ -167,11 +167,23 @@ impl Storage for MysqlStorage {
         }
     }
 
-    fn find_all_by_current_server<T>(&self) -> Result<Option<Vec<T>>>
-        where
-            T: CRUDTable,
-    {
-        todo!()
+    fn find_all_app_id_by_current_server(&self, current_server: &str) -> Result<Option<&[u64]>> {
+        block_on(async {
+            let py = r#"
+                   select id from app_info
+                   where current_server in #{current_server}"#;
+            let r: Resul<&[u64]> = self
+                .rb
+                .py_fetch(
+                    "",
+                    py,
+                    &serde_json::json!({
+                        "current_server": current_server,
+                    }),
+                )
+                .await;
+            r
+        })
     }
 
     fn find_cron_jobs(&self, ids: &[u64], time_threshold: i64) -> Result<Vec<JobInfo>> {

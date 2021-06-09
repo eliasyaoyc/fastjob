@@ -42,7 +42,13 @@ impl PartialEq for Worker {
 }
 
 impl Ord for Worker {
-    fn cmp(&self, other: &Self) -> Ordering {}
+    fn cmp(&self, other: &Self) -> Ordering {
+        let available_memory = self.indicators.get_jvmMaxMemory() - self.indicators.get_jvmUsedMemory() as f32;
+        let available_cpu = self.indicators.get_cpuProcessors() - self.indicators.get_cpuLoad();
+        let o_available_memory = other.indicators.get_jvmMaxMemory() - other.indicators.get_jvmUsedMemory() as f32;
+        let o_available_cpu = other.indicators.get_cpuProcessors() - other.indicators.get_cpuLoad();
+        (available_memory + available_cpu).cmp(&(o_available_memory - o_available_cpu))
+    }
 }
 
 impl PartialOrd for Worker {
@@ -93,6 +99,10 @@ impl Worker {
             return true;
         }
         false
+    }
+
+    fn worker_clean(&self) {
+
     }
 
     #[inline]
@@ -167,11 +177,18 @@ impl WorkerClusterHolder {
         Some(worker)
     }
 
+    /// Returns all containers deployment status in worker.
     pub fn get_container_infos(&self, contain_id: u64) -> Option<&[DeployContainerInfo]> {
-        if let Some(v) = self.containers.get(&contain_id).take() {
-            // return Some(v.as_slice());
+        if let Some(infos) = self.containers.get(&contain_id).take() {
+            let ret: &[DeployContainerInfo] = infos.iter().map(|(k, v)| v.set_workerAddress(k)).collect();
+            Some(ret)
         }
         None
+    }
+
+    /// Release all container meta.
+    pub fn release_container(&mut self) {
+
     }
 
     #[inline]

@@ -1,4 +1,4 @@
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{Receiver, Sender};
 use crate::error::Result;
 use dashmap::DashMap;
 use fastjob_components_utils::event::Event;
@@ -12,16 +12,19 @@ thread_local! {
 }
 
 pub struct EventHandler {
-    event_stream: Receiver<Event>,
+    event_recv: Receiver<Event>,
+    event_sender: Sender<Event>,
 }
 
 impl EventHandler {
-    pub fn new(event_stream: Receiver<Event>) -> Self {
-        Self { event_stream }
+    pub fn new(event_recv: Receiver<Event>,
+               event_sender: Sender<Event>,
+    ) -> Self {
+        Self { event_recv, event_sender }
     }
 
     pub async fn process_event(&mut self) {
-        while let Some(event) = self.event_stream.recv().await {
+        while let Some(event) = self.event_recv.recv().await {
 
             // FAILURE_EVENT_QUEUE.try_with();
 
@@ -29,20 +32,27 @@ impl EventHandler {
                 Event::AlarmEvent => {
                     info!("[EventHandler] receive a alarm event {}.");
                     match self.process_alarm_event().await {
-                        Err(e) => {}
+                        Err(e) => {
+                            error!("[EventHandler] process alarm event failed, error: {}", e);
+                        }
                         _ => {}
                     }
                 }
-                Event::InstanceCompletedEvent => {
-                    info!("[EventHandler] receive a instance completed event {}.")
+                Event::InstanceCompletedEvent(event) => {
+                    info!("[EventHandler] receive a instance completed event {}.");
                     match self.process_instance_completed_event().await {
-                        Err(e) => {}
+                        Err(e) => {
+                            error!("[EventHandler] process instance completed event failed, error: {}", e);
+                            FAILURE_EVENT_QUEUE.with(|failed| {});
+                        }
                         _ => {}
                     }
                 }
             }
         }
     }
+
+    pub async fn process_failed_event(&self) {}
 
     async fn process_alarm_event(&self) -> Result<()> {
         Ok(())

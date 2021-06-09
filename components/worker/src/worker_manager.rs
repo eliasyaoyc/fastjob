@@ -30,7 +30,9 @@ use crate::dispatch::Dispatch;
 
 const WORKER_MANAGER_SCHED_POOL_NUM_SIZE: usize = 2;
 const WORKER_MANAGER_SCHED_POOL_NAME: &str = "worker-manager";
-const WORKER_MANAGER_FETCH_INIT_TIME: Duration = Duration::from_secs(2);
+const WORKER_MANAGER_INIT_TIME: Duration = Duration::from_secs(2);
+const INSTANCE_STATUS_INTERVAL: Duration = Duration::from_millis(10000);
+const CLEAN_INTERVAL: Duration = Duration::from_millis(10000);
 const RETRY_TIMES: u32 = 3;
 
 pub struct WorkerManager<S: Storage> {
@@ -108,11 +110,26 @@ impl<S: Storage> WorkerManager<S> {
     async fn start(&mut self) {
         // First Start dispatch.
         self.dispatch.event_loop().await;
-        // Then start scheduler thread.
+
+        // Start scheduler thread.
         self.sched_pool.schedule_at_fixed_rate(
             self.scheduler(),
-            WORKER_MANAGER_FETCH_INIT_TIME,
+            WORKER_MANAGER_INIT_TIME,
             SCHEDULE_INTERVAL,
+        );
+
+        // Start instance status check thread.
+        self.sched_pool.schedule_at_fixed_rate(
+            self.check_instance_status(),
+            WORKER_MANAGER_INIT_TIME,
+            INSTANCE_STATUS_INTERVAL,
+        );
+
+        // Start clean thread.
+        self.sched_pool.schedule_at_fixed_rate(
+            self.release(),
+            WORKER_MANAGER_INIT_TIME,
+            CLEAN_INTERVAL,
         );
     }
 
@@ -211,7 +228,7 @@ impl<S: Storage> WorkerManager<S> {
         let app_id = req.get_appId();
         let app_name = req.get_appName();
         let mut holder = self
-            .workers
+            .workers.borrow()
             .entry(app_id)
             .or_insert(WorkerClusterHolder::new(app_name));
         holder.update_worker_status(req);
@@ -374,7 +391,16 @@ impl<S: Storage> WorkerManager<S> {
         Ok(())
     }
 
-    fn release(&self) {}
+    /// Release related resource.
+    fn release_resource(&self) {
+        // 1. release the local cache.
+        // 2. release disk space.
+        // 3. delete history records.
+    }
+
+    fn check_instance_status(&self) {
+        let app_ids = self.storage.find_all_app_id_by_current_server().context(error::WorkerStorageError)?;
+    }
 
     fn scheduler(&mut self) {
         match self.sched() {
@@ -388,42 +414,42 @@ impl<S: Storage> WorkerManager<S> {
     fn sched(&mut self) -> Result<()> {
         info!("Schedule task start.");
         let instant = Instant::now();
-        let app_ids: Option<Vec<AppInfo>> =
-            self.storage.find_all_by_current_server().context("")?;
-        if app_ids.is_none() {
-            info!("[JobScheduler] current server has no app's job to schedule.");
-            return Ok(());
-        }
-        let ids: Vec<u64> = app_ids.unwrap().iter().map(|app| app.id).collect();
 
-        let ids = ids.as_slice();
+        let app_ids = self.storage.find_all_app_id_by_current_server().context(error::WorkerStorageError)?;
 
-        self.clean_useless_worker(ids);
+        match app_ids {
+            None => {
+                info!("[JobScheduler] current server has no app's job to schedule.");
+            }
+            Some(ids) => {
+                self.clean_useless_worker(ids);
 
-        self.scheduler
-            .schedule_cron_job(ids)
-            .context(error::SchedulerFailed)?;
-        let cron_cost = instant.elapsed();
+                self.scheduler
+                    .schedule_cron_job(ids)
+                    .context(error::SchedulerFailed)?;
+                let cron_cost = instant.elapsed();
 
-        self.scheduler
-            .schedule_worker_flow(ids.clone())
-            .context(error::SchedulerFailed)?;
-        let worker_flow_cost = instant.elapsed().sub(cron_cost);
+                self.scheduler
+                    .schedule_worker_flow(ids.clone())
+                    .context(error::SchedulerFailed)?;
+                let worker_flow_cost = instant.elapsed().sub(cron_cost);
 
-        self.scheduler
-            .schedule_frequent_job(ids)
-            .context(error::SchedulerFailed)?;
-        let frequent_cost = instant.elapsed().sub(worker_flow_cost + cron_cost);
+                self.scheduler
+                    .schedule_frequent_job(ids)
+                    .context(error::SchedulerFailed)?;
+                let frequent_cost = instant.elapsed().sub(worker_flow_cost + cron_cost);
 
-        info!("[JobScheduler] cron schedule cost: {}, workflow schedule cost: {}, frequent schedule: {}", cron_cost, worker_flow_cost, frequent_cost);
+                info!("[JobScheduler] cron schedule cost: {}, workflow schedule cost: {}, frequent schedule: {}", cron_cost, worker_flow_cost, frequent_cost);
 
-        let total_cost = instant.elapsed().as_millis();
-        if total_cost > SCHEDULE_INTERVAL.as_millis() {
-            warn!(
-                "[JobScheduler] The database query is using too much time {} ms",
-                total_cost
-            );
-        }
+                let total_cost = instant.elapsed().as_millis();
+                if total_cost > SCHEDULE_INTERVAL.as_millis() {
+                    warn!(
+                        "[JobScheduler] The database query is using too much time {} ms",
+                        total_cost
+                    );
+                }
+            }
+        };
 
         Ok(())
     }
